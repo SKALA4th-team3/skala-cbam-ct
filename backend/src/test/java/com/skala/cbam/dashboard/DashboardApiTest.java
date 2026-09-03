@@ -2,6 +2,7 @@ package com.skala.cbam.dashboard;
 
 import com.skala.cbam.dashboard.dto.DashboardAlertsResponse;
 import com.skala.cbam.dashboard.dto.DashboardResponse;
+import com.skala.cbam.dashboard.dto.DashboardStatus;
 import com.skala.cbam.dashboard.entity.Alert;
 import com.skala.cbam.dashboard.entity.AlertStatus;
 import com.skala.cbam.dashboard.entity.JudgementStatus;
@@ -163,6 +164,56 @@ class DashboardApiTest {
 
         // 목록에서 뺀 경보를 severity 합계에는 남겨 두면 두 숫자가 어긋난다.
         assertThat(dashboardService.getDashboard(MONTH, null).severity().get("HIGH")).isEqualTo(1L);
+    }
+
+    // ── 38번 「업체별 상태와 건수」: 업체가 목록에서 사라지지 않는다 (막는 쪽) ──
+
+    @Test
+    @DisplayName("ACTIVE target 이 없어도 이번 달 제출이 있으면 업체가 목록에 남는다")
+    void keepsSupplierWithSubmissionButNoActiveTarget() {
+        Supplier noTarget = supplierRepository.save(
+                supplier("무연계철강", "444-44-44444", "choi@notarget.co.kr"));
+        submissionRepository.save(Submission.builder()
+                .supplier(noTarget)
+                .reportingMonth(REPORTING_MONTH)
+                .status(SubmissionStatus.REVIEW_PENDING)
+                .submittedAt(LocalDateTime.of(2026, 9, 2, 9, 0))
+                .build());
+
+        DashboardResponse response = dashboardService.getDashboard(MONTH, null);
+
+        // targets 만 순회하면 이 업체는 제출을 했는데도 화면에서 통째로 사라진다.
+        assertThat(response.suppliers())
+                .extracting(DashboardResponse.SupplierSummary::companyName)
+                .contains("무연계철강");
+        // 모수는 target 단위 그대로다 — 목록에 실린다고 counts 가 늘지는 않는다 (ADR-0005)
+        assertThat(response.counts().total()).isEqualTo(2);
+
+        DashboardResponse.SupplierSummary row = response.suppliers().stream()
+                .filter(s -> s.companyName().equals("무연계철강")).findFirst().orElseThrow();
+        assertThat(row.submissionCount()).isEqualTo(1);
+        assertThat(row.pendingCount()).isEqualTo(1);
+        // 제출한 업체를 「미제출」로 표시하면 안 된다
+        assertThat(row.status()).isNotEqualTo(DashboardStatus.NOT_SUBMITTED);
+    }
+
+    @Test
+    @DisplayName("협력 끊김 업체는 제출이 있어도 목록에 들어오지 않는다")
+    void stillExcludesInactiveSupplierThatSubmitted() {
+        Supplier closed = supplier("폐업금속", "333-33-33333", "park@closed.co.kr");
+        closed.deactivate("거래 종료");
+        Supplier saved = supplierRepository.save(closed);
+        submissionRepository.save(Submission.builder()
+                .supplier(saved)
+                .reportingMonth(REPORTING_MONTH)
+                .status(SubmissionStatus.CONFIRMED)
+                .judgement(JudgementStatus.QUALIFIED)
+                .submittedAt(LocalDateTime.of(2026, 9, 2, 9, 0))
+                .build());
+
+        assertThat(dashboardService.getDashboard(MONTH, null).suppliers())
+                .extracting(DashboardResponse.SupplierSummary::companyName)
+                .doesNotContain("폐업금속");
     }
 
     // ── 잘못된 파라미터는 500 이 아니라 400 으로 막는다 (공통 규약 3항) ──

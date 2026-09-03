@@ -1,6 +1,5 @@
 package com.skala.cbam.dashboard.entity;
 
-import com.skala.cbam.global.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -27,6 +26,12 @@ import java.time.LocalDateTime;
  * unregistered_part_id FK는 39번 응답(target: supplierId·partId·reportingMonth)에
  * 안 쓰여서 지금은 매핑하지 않았다 — 미등록 부품 관련 경보의 target.partId는 비게 된다.
  * (모르는 값을 채우지 않고 비워두는 쪽 — CLAUDE.md 원칙)
+ *
+ * <p><b>created_at · updated_at 을 일부러 매핑하지 않는다.</b> 대시보드는 두 값을 한 군데도
+ * 읽지 않는데, 매핑해 두면 같은 테이블을 보는 다른 도메인의 엔티티와 논리 컬럼명이 갈려
+ * DuplicateMappingException 으로 <b>부팅 자체가 막힌다</b>
+ * (Table [part] ... referred to by multiple logical column names: [createdAt], [created_at]).
+ * 안 쓰는 컬럼까지 소유권을 주장하지 않는다.
  */
 @Entity
 @Table(name = "alert")
@@ -34,7 +39,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
-public class Alert extends BaseTimeEntity {
+public class Alert {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

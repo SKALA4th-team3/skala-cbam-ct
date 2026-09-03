@@ -5,6 +5,7 @@ import com.skala.cbam.dashboard.dto.DashboardResponse;
 import com.skala.cbam.dashboard.dto.DashboardStatus;
 import com.skala.cbam.dashboard.entity.Alert;
 import com.skala.cbam.dashboard.entity.AlertStatus;
+import com.skala.cbam.dashboard.entity.JudgementStatus;
 import com.skala.cbam.dashboard.entity.LifecycleStatus;
 import com.skala.cbam.dashboard.entity.PartSupplier;
 import com.skala.cbam.dashboard.entity.SeverityCode;
@@ -13,6 +14,8 @@ import com.skala.cbam.dashboard.entity.SubmissionStatus;
 import com.skala.cbam.dashboard.repository.AlertRepository;
 import com.skala.cbam.dashboard.repository.PartSupplierRepository;
 import com.skala.cbam.dashboard.repository.SubmissionRepository;
+import com.skala.cbam.supplier.domain.Supplier;
+import com.skala.cbam.supplier.domain.SupplierStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -45,6 +48,12 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
+
+    /**
+     * 판정 전 제출을 어느 칸에 넣을지 팀이 정할 때까지 쓰는 임시값 — {@link #toDashboardStatus} 참고.
+     * 이름을 붙여 한 곳에 모아 둔 이유는, 삼항 연산자 안에 숨어 있으면 아무도 다시 안 보기 때문이다.
+     */
+    private static final DashboardStatus UNJUDGED_FALLBACK = DashboardStatus.UNQUALIFIED;
 
     private final PartSupplierRepository partSupplierRepository;
     private final SubmissionRepository submissionRepository;
@@ -109,12 +118,27 @@ public class DashboardService {
 
     // ── 38·40 집계 보조 ─────────────────────────────────────────────
 
+    /**
+     * 제출 한 건을 화면 상태 3분류로 바꾼다.
+     *
+     * <p>⚠️ <b>판정 전(judgement = null) 제출을 부적격으로 세고 있다. 이건 임시값이고 틀렸다.</b>
+     * 제출은 했으니 미제출이 아니고, 판정 전이니 적격도 부적격도 아니다 —
+     * 그런데 counts 는 qualified·unqualified·notSubmitted <b>3버킷 고정</b>이고
+     * {@link com.skala.cbam.dashboard.entity.JudgementStatus} 에는 PENDING 이 없다.
+     * <b>계약에 자리가 없어서</b> 여기서 임의로 고를 수 없다.
+     *
+     * <p>고치려면 counts 에 4번째 값을 넣거나 모수에서 빼야 하는데 <b>둘 다 API 명세 v10 24행을
+     * 먼저 고쳐야 하는 계약 변경</b>이다. 팀이 정하면 이 메서드 하나만 고치면 된다.
+     * 배경과 후보는 ADR-0005 「아직 정하지 못한 것」에 적어 두었다.
+     */
     private DashboardStatus toDashboardStatus(Submission current) {
         if (current == null) {
             return DashboardStatus.NOT_SUBMITTED;
         }
-        // judgement 가 아직 안 채워진 제출(분석 직후·판정 전)은 일단 부적격 쪽으로 본다 — 확인 필요
-        return current.getJudgement() == com.skala.cbam.dashboard.entity.JudgementStatus.QUALIFIED
+        if (current.getJudgement() == null) {
+            return UNJUDGED_FALLBACK;
+        }
+        return current.getJudgement() == JudgementStatus.QUALIFIED
                 ? DashboardStatus.QUALIFIED
                 : DashboardStatus.UNQUALIFIED;
     }
@@ -136,6 +160,17 @@ public class DashboardService {
         return result;
     }
 
+    /**
+     * 38번 「업체별 상태와 건수」.
+     *
+     * <p>모수는 ACTIVE target 이지만, <b>목록은 target 이 없는 업체도 빼지 않는다.</b>
+     * targets 만 순회하면 part_supplier 가 없거나 전부 INACTIVE 인 업체는 이번 달 제출이 있어도
+     * 화면에서 통째로 사라진다 — 줄이 하나 빠지는 쪽은 숫자가 틀리는 쪽보다 눈에 안 띄어 더 위험하다.
+     * 그래서 (ACTIVE target 이 있는 업체) ∪ (이번 달 제출이 있는 업체)를 순회한다.
+     *
+     * <p>협력 끊김 업체는 양쪽 모두에서 뺀다(요구사항 6번). targets 는 레포지토리에서 이미 걸러져
+     * 오고, 제출로만 들어오는 업체는 여기서 status 를 본다.
+     */
     private List<DashboardResponse.SupplierSummary> buildSupplierSummaries(
             List<PartSupplier> targets,
             List<Submission> submissions,
@@ -145,26 +180,29 @@ public class DashboardService {
         Map<Long, List<PartSupplier>> targetsBySupplier = targets.stream()
                 .collect(Collectors.groupingBy(ps -> ps.getSupplier().getId()));
         Map<Long, List<Submission>> submissionsBySupplier = submissions.stream()
+                .filter(s -> s.getSupplier().getStatus() == SupplierStatus.ACTIVE)
                 .collect(Collectors.groupingBy(s -> s.getSupplier().getId()));
+
+        Map<Long, Supplier> supplierById = new LinkedHashMap<>();
+        targets.forEach(ps -> supplierById.putIfAbsent(ps.getSupplier().getId(), ps.getSupplier()));
+        submissionsBySupplier.values().forEach(
+                list -> supplierById.putIfAbsent(list.get(0).getSupplier().getId(), list.get(0).getSupplier()));
 
         record Row(Long supplierId, String companyName, DashboardStatus status,
                    long submissionCount, long pendingCount, SeverityCode maxSeverity) {}
 
         List<Row> rows = new ArrayList<>();
-        for (Map.Entry<Long, List<PartSupplier>> entry : targetsBySupplier.entrySet()) {
+        for (Map.Entry<Long, Supplier> entry : supplierById.entrySet()) {
             Long supplierId = entry.getKey();
-            List<PartSupplier> supplierTargets = entry.getValue();
+            List<PartSupplier> supplierTargets = targetsBySupplier.getOrDefault(supplierId, List.of());
+            List<Submission> supplierSubmissions = submissionsBySupplier.getOrDefault(supplierId, List.of());
 
-            DashboardStatus worst = supplierTargets.stream()
-                    .map(ps -> statusByTarget.get(ps.getId()))
-                    .max(Comparator.comparingInt(this::statusPriority))
-                    .orElse(DashboardStatus.NOT_SUBMITTED);
+            DashboardStatus worst = worstStatus(supplierTargets, supplierSubmissions, statusByTarget);
 
             if (statusFilter != null && worst != statusFilter) {
                 continue;
             }
 
-            List<Submission> supplierSubmissions = submissionsBySupplier.getOrDefault(supplierId, List.of());
             long submissionCount = supplierSubmissions.size();
             long pendingCount = supplierSubmissions.stream()
                     .filter(s -> s.getStatus() == SubmissionStatus.REVIEW_PENDING)
@@ -175,11 +213,11 @@ public class DashboardService {
                     .min(Comparator.comparingInt(this::severityPriority))
                     .orElse(null);
 
-            String companyName = supplierTargets.get(0).getSupplier().getName();
-            rows.add(new Row(supplierId, companyName, worst, submissionCount, pendingCount, maxSeverity));
+            rows.add(new Row(supplierId, entry.getValue().getName(), worst,
+                    submissionCount, pendingCount, maxSeverity));
         }
 
-        // sort=severity,desc 기본값 — 심각도 높은 업체 먼저, 동률이면 회사명순 (가정, 팀 확인 필요)
+        // sort=severity,desc 기본값 — 심각도 높은 업체 먼저, 동률이면 회사명순 (가정, ADR-0004 참고)
         rows.sort(Comparator
                 .comparingInt((Row r) -> severityPriority(r.maxSeverity()))
                 .thenComparing(Row::companyName));
@@ -188,6 +226,27 @@ public class DashboardService {
                 .map(r -> new DashboardResponse.SupplierSummary(
                         r.supplierId(), r.companyName(), r.status(), r.submissionCount(), r.pendingCount()))
                 .toList();
+    }
+
+    /**
+     * 업체 한 줄의 대표 상태. ACTIVE target 의 상태 중 가장 나쁜 것을 쓴다.
+     *
+     * <p>target 이 하나도 없는 업체(제출로만 목록에 들어온 업체)는 제출에서 상태를 뽑는다 —
+     * 이때 「미제출」이라고 쓰면 제출한 업체를 미제출로 표시하게 된다.
+     */
+    private DashboardStatus worstStatus(List<PartSupplier> supplierTargets,
+                                        List<Submission> supplierSubmissions,
+                                        Map<Long, DashboardStatus> statusByTarget) {
+        if (!supplierTargets.isEmpty()) {
+            return supplierTargets.stream()
+                    .map(ps -> statusByTarget.get(ps.getId()))
+                    .max(Comparator.comparingInt(this::statusPriority))
+                    .orElse(DashboardStatus.NOT_SUBMITTED);
+        }
+        return supplierSubmissions.stream()
+                .map(this::toDashboardStatus)
+                .max(Comparator.comparingInt(this::statusPriority))
+                .orElse(DashboardStatus.NOT_SUBMITTED);
     }
 
     private int statusPriority(DashboardStatus status) {

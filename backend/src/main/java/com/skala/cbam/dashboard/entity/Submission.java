@@ -1,6 +1,5 @@
 package com.skala.cbam.dashboard.entity;
 
-import com.skala.cbam.global.entity.BaseTimeEntity;
 import com.skala.cbam.supplier.domain.Supplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +28,12 @@ import java.time.LocalDateTime;
  *
  * <p>supplier 는 협력업체 도메인의 정식 엔티티를 참조한다 — PartSupplier 주석 참고.
  *
+ * <p><b>created_at · updated_at 을 일부러 매핑하지 않는다.</b> 대시보드는 두 값을 한 군데도
+ * 읽지 않는데, 매핑해 두면 같은 테이블을 보는 다른 도메인의 엔티티와 논리 컬럼명이 갈려
+ * DuplicateMappingException 으로 <b>부팅 자체가 막힌다</b>
+ * (Table [part] ... referred to by multiple logical column names: [createdAt], [created_at]).
+ * 안 쓰는 컬럼까지 소유권을 주장하지 않는다.
+ *
  * status(처리 상태) 와 judgement(판정 결과) 는 다른 축이다 — API 명세 20행 비고 참고.
  */
 @Entity
@@ -37,7 +42,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
-public class Submission extends BaseTimeEntity {
+public class Submission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

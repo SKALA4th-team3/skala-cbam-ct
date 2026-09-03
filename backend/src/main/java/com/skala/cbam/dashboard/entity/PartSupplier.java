@@ -1,6 +1,5 @@
 package com.skala.cbam.dashboard.entity;
 
-import com.skala.cbam.global.entity.BaseTimeEntity;
 import com.skala.cbam.supplier.domain.Supplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +27,12 @@ import lombok.NoArgsConstructor;
  *
  * <p>⚠️ part · part_supplier 의 소유 도메인은 아직 팀 미결정이다. 부품(7~10번) 쪽에도
  * 같은 테이블을 보는 매핑이 있어 합치기 전에 소유자를 정해야 한다.
+ *
+ * <p><b>created_at · updated_at 을 일부러 매핑하지 않는다.</b> 대시보드는 두 값을 한 군데도
+ * 읽지 않는데, 매핑해 두면 같은 테이블을 보는 다른 도메인의 엔티티와 논리 컬럼명이 갈려
+ * DuplicateMappingException 으로 <b>부팅 자체가 막힌다</b>
+ * (Table [part] ... referred to by multiple logical column names: [createdAt], [created_at]).
+ * 안 쓰는 컬럼까지 소유권을 주장하지 않는다.
  */
 @Entity
 @Table(name = "part_supplier")
@@ -35,7 +40,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
-public class PartSupplier extends BaseTimeEntity {
+public class PartSupplier {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
