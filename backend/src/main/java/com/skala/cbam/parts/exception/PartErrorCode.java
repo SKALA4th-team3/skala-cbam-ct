@@ -16,7 +16,13 @@ public enum PartErrorCode {
     OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "값이 허용 범위를 벗어났습니다."),
     DUPLICATE_PART_CODE(HttpStatus.CONFLICT, "이미 등록된 부품코드입니다."),
     DUPLICATE_PART_NAME(HttpStatus.CONFLICT, "이미 등록된 부품명입니다."),
-    PART_NOT_FOUND(HttpStatus.NOT_FOUND, "부품을 찾을 수 없습니다.");
+    PART_NOT_FOUND(HttpStatus.NOT_FOUND, "부품을 찾을 수 없습니다."),
+
+    /**
+     * 404 — 공급 협력업체로 지정한 id 가 없음 (7번 · 8번).
+     * 어느 id 가 없는지는 details.missingSupplierIds 로 돌려준다.
+     */
+    SUPPLIER_NOT_FOUND(HttpStatus.NOT_FOUND, "협력업체를 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;

@@ -42,7 +42,8 @@ public class PartsController extends PartsApiExceptionHandling {
 
     @Operation(summary = "부품 수정", description = "요구사항 8번")
     @PatchMapping("/{partId}")
-    public ResponseEntity<PartResponse> update(@PathVariable Long partId, @RequestBody PartUpdateRequest request) {
+    public ResponseEntity<PartResponse> update(@PathVariable Long partId,
+                                              @Valid @RequestBody PartUpdateRequest request) {
         return ResponseEntity.ok(partsService.update(partId, request));
     }
 
