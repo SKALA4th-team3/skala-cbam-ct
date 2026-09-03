@@ -18,7 +18,7 @@ const facets = [
   { key: 'tie', label: '거래 상태', field: 'tie' },
   { key: 'judgement', label: '판정 결과', field: 'judgement' },
 ]
-/* 기본 정렬은 업체명순(`companyName`) — ADR-0006.
+/* 기본 정렬은 업체명순(`companyName`) — ADR-0007.
    심각도 정렬은 아직 없다. 심각도는 협력업체의 속성이 아니라 제출 데이터에서 나온다 —
    36번이 규칙 R1~R7 로 HIGH·MEDIUM·LOW 를 부여한 뒤에 붙인다.
    그전까지 아래 「판정 결과순」은 판정값 순서일 뿐 심각도가 아니다. 이름을 그렇게 쓴다. */

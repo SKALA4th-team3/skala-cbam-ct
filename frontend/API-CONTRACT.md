@@ -18,7 +18,7 @@
 | 담당자 | `X-Operator-Id` 헤더 — **인증이 아니라 감사 기록용** |
 
 엔드포인트 현황은 `npm run api:status` 로 센다. **21건이 명세와 같은 경로·메서드로 선언돼 있고 전부 목이다.**
-목이 정한 대로 동작하는지는 `npm run api:verify` 로 센다 — 상태값 경계(ADR-0004)·기본 정렬(ADR-0006)·확정을 **막는 쪽**(31번)을 확인한다.
+목이 정한 대로 동작하는지는 `npm run api:verify` 로 센다 — 상태값 경계(ADR-0005)·기본 정렬(ADR-0007)·확정을 **막는 쪽**(31번)을 확인한다.
 
 ---
 
@@ -43,7 +43,7 @@ FE 코드는 v10 의 실제 번호를 따라가고 있다. 이슈 [#12](../../..
 
 **정해진 것은 여기 남긴다.** 안 남기면 다음 사람이 「아직 어긋난 것」인 줄 알고 다시 논의한다.
 
-### 상태값 한글 ↔ 영문 enum → [ADR-0004](../docs/decisions/0004-status-enum-boundary.md)
+### 상태값 한글 ↔ 영문 enum → [ADR-0005](../docs/decisions/0005-status-enum-boundary.md)
 
 **BE 응답은 영문 enum, 화면은 한글.** 변환은 FE 경계 두 곳에서만 일어난다.
 
@@ -57,13 +57,13 @@ FE 코드는 v10 의 실제 번호를 따라가고 있다. 이슈 [#12](../../..
 
 `npm run api:verify` 가 이것을 센다 — **한글로 걸러도 enum 으로 걸러도 같은 46곳**이 나오는지 본다. 변환을 지우면 0곳이 되며 실패한다.
 
-### 협력업체 기본 정렬 → [ADR-0006](../docs/decisions/0006-supplier-list-default-sort.md)
+### 협력업체 기본 정렬 → [ADR-0007](../docs/decisions/0007-supplier-list-default-sort.md)
 
 **업체명순(`companyName`).** 화면이 기본으로 쓰던 「심각도 높은 순」은 명세가 허용하지 않는 키였고,
 실제로도 심각도가 아니라 판정값 순서였다 — 두 번째 선택지를 **「판정 결과순」**으로 이름을 고쳤다.
 심각도 정렬은 36번이 심각도(R1~R7 → HIGH·MEDIUM·LOW)를 내려준 뒤에 붙인다.
 
-### 인증·인가 → [ADR-0005](../docs/decisions/0005-no-auth-internal-network.md)
+### 인증·인가 → [ADR-0006](../docs/decisions/0006-no-auth-internal-network.md)
 
 **넣지 않는다. 사내망을 신뢰 경계로 둔다.** `X-Operator-Id` 는 인증이 아니라 감사 기록용이고,
 `VITE_OPERATOR_ID` 고정값으로 보낸다. **담당자를 고르는 화면은 만들지 않는다** — 확정·반려 기록의 행위자는 전부 같은 값이다.

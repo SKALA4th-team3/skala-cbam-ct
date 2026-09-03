@@ -42,9 +42,9 @@ docs/decisions/0001-ai-response-schema.md
 | [ADR-0001](0001-outlier-threshold.md) | 이상치 판정을 ±30% 고정으로 한다 (34번 · R4) |
 | [ADR-0002](0002-project-scaffold.md) | 초기 구조 — backend/frontend 분리 · Gradle · JavaScript |
 | [ADR-0003](0003-branch-name-jira-key.md) | 브랜치 이름을 Jira 이슈 키 하나로 한다 (`CBAM-43`) |
-| [ADR-0004](0004-status-enum-boundary.md) | 상태값은 서버가 영문 enum · 화면이 한글 — 변환은 FE 경계 한 곳 |
-| [ADR-0005](0005-no-auth-internal-network.md) | 인증·인가를 넣지 않는다 — 사내망을 신뢰 경계로 둔다 |
-| [ADR-0006](0006-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |
+| [ADR-0005](0005-status-enum-boundary.md) | 상태값은 서버가 영문 enum · 화면이 한글 — 변환은 FE 경계 한 곳 |
+| [ADR-0006](0006-no-auth-internal-network.md) | 인증·인가를 넣지 않는다 — 사내망을 신뢰 경계로 둔다 |
+| [ADR-0007](0007-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |
 
 ## 앞으로 예상되는 것
 
@@ -52,6 +52,6 @@ docs/decisions/0001-ai-response-schema.md
 - 메일 수신 방식과 폴링 주기 (18번)
 - 규칙 R1~R7이 걸렸을 때 `부적격`인지 `미제출`인지 (**현재 매핑 없음** — 가장 급하다)
 - 발송 이력 전체 조회 경로를 명세에 추가할지 (이슈 [#13](../../../../issues/13) — **답을 기다리는 중**)
-- 협력업체 단위 심각도의 정의 — 36번이 붙은 뒤 ([ADR-0006](0006-supplier-list-default-sort.md) 이 열어 둔 것)
+- 협력업체 단위 심각도의 정의 — 36번이 붙은 뒤 ([ADR-0007](0007-supplier-list-default-sort.md) 이 열어 둔 것)
 
 그 밖에는 PR 본문으로 충분하다.

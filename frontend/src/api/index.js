@@ -4,7 +4,7 @@
    BE 가 붙으면 여기 본문만 fetch 로 갈아끼운다. 화면 코드는 건드릴 일이 없다.
 
    상태값은 서버가 영문 enum(ACTIVE·QUALIFIED·NOT_SUBMITTED …), 화면이 한글(협력유지중·적격·미제출 …)이다.
-   ADR-0004 로 정했다 — 매핑표는 enums.js, 응답 변환은 client.js 의 request() 한 곳,
+   ADR-0005 로 정했다 — 매핑표는 enums.js, 응답 변환은 client.js 의 request() 한 곳,
    서버로 보내는 필터·정렬은 각 엔드포인트가 toServer() 로 바꿔 보낸다. */
 import { request, page, startTask, getTask, ApiError } from './client'
 import { toServer, toCode } from './enums'
@@ -18,8 +18,8 @@ let PRT = clone(parts)
 /* ── 협력업체 (명세 №1~4) ───────────────────────────────── */
 export const Suppliers = {
   /** №3 GET /suppliers?search&country&status&submissionStatus&months&page&size&sort
-      필터·정렬은 서버로 영문 enum 과 명세의 sort 키로 나간다 (ADR-0004).
-      기본 정렬은 `companyName` — 요구사항 4번의 미결 항목을 ADR-0006 으로 닫았다.
+      필터·정렬은 서버로 영문 enum 과 명세의 sort 키로 나간다 (ADR-0005).
+      기본 정렬은 `companyName` — 요구사항 4번의 미결 항목을 ADR-0007 으로 닫았다.
       화면이 「심각도 높은 순」을 기본으로 쓰던 것은 명세가 허용하지 않는 키였다. */
   list: (q = {}) => request('GET /suppliers', () => {
     const query = toServer(q)                       // 한글 라벨 → enum. 실서버도 이 값을 받는다
