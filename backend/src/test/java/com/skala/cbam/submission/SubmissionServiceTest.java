@@ -20,15 +20,22 @@ import com.skala.cbam.submission.repository.ExtractionFieldRepository;
 import com.skala.cbam.submission.repository.SubmissionRepository;
 import com.skala.cbam.submission.repository.UnregisteredPartRepository;
 import com.skala.cbam.submission.service.SubmissionService;
+import com.skala.cbam.submission.service.port.PartRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.repository.SupplierRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +51,35 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @Transactional
+@Import(SubmissionServiceTest.FakePartRelatedDataProviderConfig.class)
 class SubmissionServiceTest {
+
+    /**
+     * NotYetImplementedPartRelatedDataProvider(항상 빈 값)를 테스트 안에서만 대체한다.
+     * partSupplierId=1L 로 넘기면 확정에 필요한 benchmarkFactorYear 를 실제로 준다 —
+     * 이게 없으면 확정 "되는 경우" 테스트를 할 방법이 없다(PR #22 리뷰 지적 이후).
+     */
+    @TestConfiguration
+    static class FakePartRelatedDataProviderConfig {
+        @Bean
+        @Primary
+        PartRelatedDataProvider fakePartRelatedDataProvider() {
+            return new PartRelatedDataProvider() {
+                @Override
+                public List<PartSupplierTarget> findActiveTargets(Long supplierId, Long partId) {
+                    return List.of();
+                }
+
+                @Override
+                public Optional<PartInfo> findPartInfo(Long partSupplierId) {
+                    if (partSupplierId != null && partSupplierId == 1L) {
+                        return Optional.of(new PartInfo(101L, "테스트부품", 2026));
+                    }
+                    return Optional.empty();
+                }
+            };
+        }
+    }
 
     @Autowired
     private SubmissionService submissionService;
@@ -79,8 +114,14 @@ class SubmissionServiceTest {
     }
 
     private Submission saveSubmission(SubmissionStatus status, Judgement judgement, Severity severity) {
+        return saveSubmission(status, judgement, severity, null);
+    }
+
+    private Submission saveSubmission(
+            SubmissionStatus status, Judgement judgement, Severity severity, Long partSupplierId) {
         return submissionRepository.save(Submission.builder()
                 .supplier(daehan)
+                .partSupplierId(partSupplierId)
                 .reportingMonth(MONTH)
                 .status(status)
                 .judgement(judgement)
@@ -107,13 +148,34 @@ class SubmissionServiceTest {
 
     @Test
     void 확정은_적격이고_미등록부품_없을때_된다() {
-        Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.QUALIFIED, null);
+        // partSupplierId=1L → FakePartRelatedDataProviderConfig 가 benchmarkFactorYear 를 준다
+        Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.QUALIFIED, null, 1L);
 
         var response = submissionService.confirm(s.getId(), "demo");
 
         assertThat(response.status()).isEqualTo(SubmissionStatus.CONFIRMED);
         assertThat(response.confirmedBy()).isEqualTo("demo");
+        assertThat(response.calculatedEmission().appliedFactorYear()).isEqualTo(2026);
         assertThat(response.calculatedEmission().frozen()).isTrue();
+    }
+
+    @Test
+    void 확정은_배출계수_연도를_못_구하면_막힌다() {
+        // PR #22 리뷰 지적: 예전엔 이럴 때 현재 연도로 대체해서 확정을 진행했다 —
+        // 모르는 값을 영구 확정 데이터에 채우는 것이라 원칙 위반. 이제는 막아야 한다.
+        // partSupplierId 를 안 주면(또는 Fake Provider 가 모르는 값이면) benchmarkFactorYear 를
+        // 못 구한다.
+        Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.QUALIFIED, null);
+
+        assertThatThrownBy(() -> submissionService.confirm(s.getId(), "demo"))
+                .isInstanceOf(SubmissionException.class)
+                .satisfies(e -> assertThat(((SubmissionException) e).errorCode())
+                        .isEqualTo(SubmissionErrorCode.BENCHMARK_FACTOR_YEAR_UNKNOWN));
+
+        // 막았으면 상태도 그대로 REVIEW_PENDING 이어야 한다 — 일부만 바뀐 채 남으면 안 된다
+        Submission reloaded = submissionRepository.findById(s.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(SubmissionStatus.REVIEW_PENDING);
+        assertThat(reloaded.isFrozen()).isFalse();
     }
 
     @Test

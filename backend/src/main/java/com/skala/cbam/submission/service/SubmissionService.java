@@ -26,7 +26,6 @@ import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.dto.PageResponse;
 import com.skala.cbam.supplier.repository.SupplierRepository;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -51,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SubmissionService {
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final String EMISSION_UNIT = "tCO2e";
 
     private final SubmissionRepository submissionRepository;
@@ -298,16 +296,20 @@ public class SubmissionService {
 
         // ERD: part.benchmark_factor_year = "현재 기준 배출원단위 적용 연도". 확정 시점엔 그 값을
         // 스냅샷으로 찍어야 한다("확정한 날짜의 연도"가 아니다) — Port 로 부품 도메인에 물어본다.
-        // 부품 도메인이 아직 dev 에 없어 못 받으면(Optional 비어있으면), 부팅은 되게 현재 연도로
-        // 잠깐 대체한다 — 이건 질문이 아니라 그냥 데이터가 없어서 나는 임시 기본값이다.
+        //
+        // PR #22 리뷰 지적(고침): 부품 도메인이 아직 없어 못 구했을 때 현재 연도로 대체해 확정을
+        // 진행했었다. 확정은 되돌릴 수 없는 스냅샷이라, 출처 없는 값을 영구 저장하는 것은
+        // "모르면 채우지 말고 비우고 사유를 남긴다" 원칙과 어긋난다. 못 구하면 채우지 않고
+        // 확정 자체를 막는다 — ERD 규칙 16도 CONFIRMED 면 관련 필드가 전부 not null 이어야
+        // 한다고 정해서, 값을 비운 채로 확정 상태를 만드는 것 자체가 애초에 불가능하다.
         Integer benchmarkFactorYear = s.getPartSupplierId() == null ? null
                 : partRelatedDataProvider.findPartInfo(s.getPartSupplierId())
                         .map(PartRelatedDataProvider.PartInfo::benchmarkFactorYear)
                         .orElse(null);
-        int appliedFactorYear = benchmarkFactorYear != null
-                ? benchmarkFactorYear
-                : OffsetDateTime.now(SEOUL).getYear();
-        s.confirm(operatorId, appliedFactorYear);
+        if (benchmarkFactorYear == null) {
+            throw new SubmissionException(SubmissionErrorCode.BENCHMARK_FACTOR_YEAR_UNKNOWN);
+        }
+        s.confirm(operatorId, benchmarkFactorYear);
 
         return new SubmissionConfirmResponse(
                 s.getId(), s.getStatus(), s.getConfirmedBy(), s.getConfirmedAt(),

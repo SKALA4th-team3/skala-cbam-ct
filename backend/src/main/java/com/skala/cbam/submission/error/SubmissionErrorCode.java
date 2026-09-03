@@ -29,7 +29,15 @@ public enum SubmissionErrorCode {
     NOT_REJECTABLE(HttpStatus.BAD_REQUEST, "반려할 수 없는 상태입니다"),
 
     /** 400 — resultStatus 가 REJECTED·NOT_SUBMITTED 가 아님 (№23). */
-    INVALID_RESULT_STATUS(HttpStatus.BAD_REQUEST, "resultStatus 는 REJECTED 또는 NOT_SUBMITTED 여야 합니다");
+    INVALID_RESULT_STATUS(HttpStatus.BAD_REQUEST, "resultStatus 는 REJECTED 또는 NOT_SUBMITTED 여야 합니다"),
+
+    /**
+     * 400 — 확정 시점에 적용할 배출계수 연도(part.benchmark_factor_year)를 못 구함 (№22 확정).
+     * 부품 도메인이 아직 없어 못 구하는 경우가 지금은 전부다. PR #22 리뷰 지적으로 추가함 —
+     * 모르는 값을 현재 연도로 대체해 영구 확정하면 "모르면 비우고 사유를 남긴다"는 원칙과
+     * 어긋나고, 나중에 부품 도메인이 붙어도 이미 확정된 값을 못 고친다.
+     */
+    BENCHMARK_FACTOR_YEAR_UNKNOWN(HttpStatus.BAD_REQUEST, "확정에 필요한 배출계수 연도를 아직 확인할 수 없습니다");
 
     private final HttpStatus status;
     private final String defaultMessage;
