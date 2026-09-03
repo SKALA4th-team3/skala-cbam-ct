@@ -32,6 +32,17 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 
 **DB 는 아직 안 정했다.** 기본값은 부팅용 H2 인메모리다 — [ADR-0002](docs/decisions/0002-project-scaffold.md).
 
+## 개발 시작할 때
+
+**`dev` 에서 브랜치를 딴다. PR 도 `dev` 로 낸다.** `main` 은 검증 끝난 것만 올라간다.
+
+```bash
+git switch dev && git pull
+git switch -c feat/be/24-unit-normalize    # {type}/{domain}/{번호-기능명}
+```
+
+형식은 [`docs/GIT_CONVENTION.md`](docs/GIT_CONVENTION.md) 를 본다.
+
 ## 규칙 요약
 
 - **요구사항 번호 없이 코드를 쓰지 않는다** — 명세에 없으면 팀에 먼저 묻는다
