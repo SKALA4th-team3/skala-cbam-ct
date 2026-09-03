@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,7 +36,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 데이터 검토 API (API 명세 №20~№23 · 요구사항 29~32번, CBAM-90).
  *
- * <p>X-Operator-Id 는 받지 않는다 — {@code SupplierController} 와 같은 이유(주석 참고).
+ * <p>X-Operator-Id 는 확정·반려에서만 받는다. ADR-0006: 인증 수단이 아니라 감사 기록용이고,
+ * FE 는 {@code VITE_OPERATOR_ID} 고정값("demo")으로 보낸다 — 그래서 기본값도 "demo"로 맞춘다.
+ * 목록·상세 조회는 이 값을 쓸 데가 없어 안 받는다({@code SupplierController} 의 다른 API들과 같은 이유).
  */
 @Tag(name = "데이터 검토", description = "제출 데이터 조회·확정·반려 API")
 @RestController
@@ -86,16 +89,20 @@ public class SubmissionController extends SubmissionApiExceptionHandling {
 
     @Operation(summary = "데이터 확정", description = "판정이 적격이고 미등록 부품이 없는 경우에만 확정할 수 있다.")
     @PostMapping("/{submissionId}/confirm")
-    public ResponseEntity<SubmissionConfirmResponse> confirm(@PathVariable Long submissionId) {
-        return ResponseEntity.ok(submissionService.confirm(submissionId));
+    public ResponseEntity<SubmissionConfirmResponse> confirm(
+            @PathVariable Long submissionId,
+            @RequestHeader(value = "X-Operator-Id", defaultValue = "demo") String operatorId) {
+        return ResponseEntity.ok(submissionService.confirm(submissionId, operatorId));
     }
 
     @Operation(summary = "제출 데이터 반려", description = "부적격 데이터를 반려한다. "
             + "resultStatus 로 REJECTED·NOT_SUBMITTED 중 하나를 지정한다.")
     @PostMapping("/{submissionId}/reject")
     public ResponseEntity<SubmissionRejectResponse> reject(
-            @PathVariable Long submissionId, @RequestBody SubmissionRejectRequest request) {
-        return ResponseEntity.ok(submissionService.reject(submissionId, request));
+            @PathVariable Long submissionId,
+            @RequestHeader(value = "X-Operator-Id", defaultValue = "demo") String operatorId,
+            @RequestBody SubmissionRejectRequest request) {
+        return ResponseEntity.ok(submissionService.reject(submissionId, request, operatorId));
     }
 
     private LocalDate parseMonth(String value) {

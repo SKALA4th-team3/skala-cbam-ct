@@ -109,10 +109,10 @@ class SubmissionServiceTest {
     void 확정은_적격이고_미등록부품_없을때_된다() {
         Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.QUALIFIED, null);
 
-        var response = submissionService.confirm(s.getId());
+        var response = submissionService.confirm(s.getId(), "demo");
 
         assertThat(response.status()).isEqualTo(SubmissionStatus.CONFIRMED);
-        assertThat(response.confirmedBy()).isEqualTo("UNKNOWN");
+        assertThat(response.confirmedBy()).isEqualTo("demo");
         assertThat(response.calculatedEmission().frozen()).isTrue();
     }
 
@@ -120,7 +120,7 @@ class SubmissionServiceTest {
     void 확정은_부적격이면_막힌다() {
         Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.UNQUALIFIED, Severity.HIGH);
 
-        assertThatThrownBy(() -> submissionService.confirm(s.getId()))
+        assertThatThrownBy(() -> submissionService.confirm(s.getId(), "demo"))
                 .isInstanceOf(SubmissionException.class)
                 .satisfies(e -> assertThat(((SubmissionException) e).errorCode())
                         .isEqualTo(SubmissionErrorCode.NOT_QUALIFIED));
@@ -132,7 +132,7 @@ class SubmissionServiceTest {
         unregisteredPartRepository.save(UnregisteredPart.builder()
                 .submission(s).rawPartName("hot rolled coil").status(UnregisteredPartStatus.OPEN).build());
 
-        assertThatThrownBy(() -> submissionService.confirm(s.getId()))
+        assertThatThrownBy(() -> submissionService.confirm(s.getId(), "demo"))
                 .isInstanceOf(SubmissionException.class)
                 .satisfies(e -> assertThat(((SubmissionException) e).errorCode())
                         .isEqualTo(SubmissionErrorCode.UNREGISTERED_PART_EXISTS));
@@ -144,7 +144,7 @@ class SubmissionServiceTest {
         Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.QUALIFIED, Severity.LOW);
 
         var request = new SubmissionRejectRequest("REJECTED", "MISSING_REQUIRED_FIELD", "직접 배출량 누락", false);
-        var response = submissionService.reject(s.getId(), request);
+        var response = submissionService.reject(s.getId(), request, "demo");
 
         assertThat(response.status()).isEqualTo(SubmissionStatus.REJECTED);
         assertThat(response.judgement()).isEqualTo(Judgement.UNQUALIFIED);
@@ -156,7 +156,7 @@ class SubmissionServiceTest {
         Submission s = saveSubmission(SubmissionStatus.REJECTED, Judgement.UNQUALIFIED, Severity.HIGH);
 
         var request = new SubmissionRejectRequest("REJECTED", "X", "Y", false);
-        assertThatThrownBy(() -> submissionService.reject(s.getId(), request))
+        assertThatThrownBy(() -> submissionService.reject(s.getId(), request, "demo"))
                 .isInstanceOf(SubmissionException.class)
                 .satisfies(e -> assertThat(((SubmissionException) e).errorCode())
                         .isEqualTo(SubmissionErrorCode.NOT_REJECTABLE));
@@ -167,7 +167,7 @@ class SubmissionServiceTest {
         Submission s = saveSubmission(SubmissionStatus.CONFIRMED, Judgement.QUALIFIED, null);
 
         var request = new SubmissionRejectRequest("REJECTED", "X", "Y", false);
-        assertThatThrownBy(() -> submissionService.reject(s.getId(), request))
+        assertThatThrownBy(() -> submissionService.reject(s.getId(), request, "demo"))
                 .isInstanceOf(SubmissionException.class)
                 .satisfies(e -> assertThat(((SubmissionException) e).errorCode())
                         .isEqualTo(SubmissionErrorCode.ALREADY_CONFIRMED));
@@ -178,7 +178,7 @@ class SubmissionServiceTest {
         Submission s = saveSubmission(SubmissionStatus.REVIEW_PENDING, Judgement.UNQUALIFIED, Severity.HIGH);
 
         var request = new SubmissionRejectRequest("CONFIRMED", "X", "Y", false);
-        assertThatThrownBy(() -> submissionService.reject(s.getId(), request))
+        assertThatThrownBy(() -> submissionService.reject(s.getId(), request, "demo"))
                 .isInstanceOf(SubmissionException.class)
                 .satisfies(e -> assertThat(((SubmissionException) e).errorCode())
                         .isEqualTo(SubmissionErrorCode.INVALID_RESULT_STATUS));

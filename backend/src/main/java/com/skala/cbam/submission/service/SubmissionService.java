@@ -43,16 +43,15 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 데이터 검토 API 서비스 (29~32번, CBAM-90).
  *
- * <p>X-Operator-Id 는 읽지 않는다 — {@code SupplierController} 가 이미 정한 대로 인증·인가 방식이
- * 명세에서 [미정]이라서다. confirmedBy·rejectedBy 는 응답 계약상 값이 있어야 해서
- * {@link #OPERATOR_PLACEHOLDER} 로 채우고, 인증 방식이 정해지면 실제 담당자로 교체한다.
+ * <p>ADR-0006: 인증·인가는 안 넣는다(사내망 신뢰 경계), X-Operator-Id는 감사 기록용이다.
+ * FE가 {@code VITE_OPERATOR_ID} 고정값("demo")으로 보내는 걸 그대로 받아 confirmedBy·rejectedBy에
+ * 채운다 — 검증하지 않는다(인증이 아니므로).
  */
 @Service
 @RequiredArgsConstructor
 public class SubmissionService {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final String OPERATOR_PLACEHOLDER = "UNKNOWN";
     private static final String EMISSION_UNIT = "tCO2e";
 
     private final SubmissionRepository submissionRepository;
@@ -278,7 +277,7 @@ public class SubmissionService {
     // ── 31번: 확정 ─────────────────────────────────────────────────
 
     @Transactional
-    public SubmissionConfirmResponse confirm(Long submissionId) {
+    public SubmissionConfirmResponse confirm(Long submissionId, String operatorId) {
         Submission s = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new SubmissionException(SubmissionErrorCode.SUBMISSION_NOT_FOUND));
 
@@ -308,7 +307,7 @@ public class SubmissionService {
         int appliedFactorYear = benchmarkFactorYear != null
                 ? benchmarkFactorYear
                 : OffsetDateTime.now(SEOUL).getYear();
-        s.confirm(OPERATOR_PLACEHOLDER, appliedFactorYear);
+        s.confirm(operatorId, appliedFactorYear);
 
         return new SubmissionConfirmResponse(
                 s.getId(), s.getStatus(), s.getConfirmedBy(), s.getConfirmedAt(),
@@ -320,7 +319,7 @@ public class SubmissionService {
     // ── 32번: 반려 ─────────────────────────────────────────────────
 
     @Transactional
-    public SubmissionRejectResponse reject(Long submissionId, SubmissionRejectRequest request) {
+    public SubmissionRejectResponse reject(Long submissionId, SubmissionRejectRequest request, String operatorId) {
         Submission s = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new SubmissionException(SubmissionErrorCode.SUBMISSION_NOT_FOUND));
 
@@ -334,7 +333,7 @@ public class SubmissionService {
         }
 
         SubmissionStatus resultStatus = parseResultStatus(request.resultStatus());
-        s.reject(resultStatus, request.reasonCode(), request.reason(), OPERATOR_PLACEHOLDER);
+        s.reject(resultStatus, request.reasonCode(), request.reason(), operatorId);
 
         // createFeedbackDraft 요청 여부와 관계없이 feedbackDraftTaskId 는 항상 null —
         // 피드백 초안 도메인(42~46번)이 아직 없다. 가짜 taskId 는 만들지 않는다.
