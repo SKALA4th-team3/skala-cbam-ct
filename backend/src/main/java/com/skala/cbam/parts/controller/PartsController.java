@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "부품", description = "부품 등록·수정·조회 API (요구사항 7~10번)")
 @RestController
 @RequestMapping("/api/v1/parts")
-public class PartsController {
+public class PartsController extends PartsApiExceptionHandling {
 
     private final PartsService partsService;
 
