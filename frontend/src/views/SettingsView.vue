@@ -3,13 +3,13 @@ import { ref } from 'vue'
 import { CHECKS, SEVERITIES } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import StatusChip from '@/components/StatusChip.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { useUi } from '@/stores/ui'
 
 const ui = useUi()
 /* 판정 규칙은 서버 내부 정의다. API 명세 v10 에 조회 엔드포인트가 없어 화면이 상수로 읽는다. */
 const checks = ref(CHECKS); const severities = ref(SEVERITIES)
 function pick(c, v) { c.value = v; ui.say(`${c.title} → ${v} · 다음 판정부터 적용됩니다`) }
-const badge = s => s === 'HIGH' ? 'missing' : s === 'MEDIUM' ? 'anomaly' : 'expiring'
 </script>
 
 <template>
@@ -38,12 +38,13 @@ const badge = s => s === 'HIGH' ? 'missing' : s === 'MEDIUM' ? 'anomaly' : 'expi
     <p>판정 사유로 기록되는 규칙 코드마다 심각도가 정해져 있습니다.</p>
   </div>
   <div class="list stage" style="--d:240ms">
-    <div v-for="r in severities" :key="r.rule" class="row al" style="cursor:pointer"
+    <div v-for="r in severities" :key="r.rule" v-clickable class="row al" style="cursor:pointer"
+         :aria-label="`${r.rule} ${r.name} 설명`"
          @click="ui.say(`${r.rule} ${r.name} · 심각도 ${r.severity} · ${r.action}`)">
       <div class="n"><b>{{ r.name }}</b><span>{{ r.desc }}</span></div>
       <span class="rule">{{ r.rule }}</span>
       <span class="why">{{ r.action }}</span>
-      <span class="badge" :class="badge(r.severity)">{{ r.severity }}</span>
+      <StatusBadge :value="r.severity" />
     </div>
   </div>
   <div class="spacer"></div>

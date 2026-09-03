@@ -1,15 +1,22 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Review } from '@/api'
+import { Review, allRows } from '@/api'
+import StatusBadge from '@/components/StatusBadge.vue'
 import ViewHead from '@/components/ViewHead.vue'
 
 const router = useRouter()
 const items = ref([])
 const filter = ref('전체')
 const FILTERS = ['전체', 'HIGH', 'MEDIUM', 'LOW']
-onMounted(async () => { items.value = (await Review.queue()).content })
-const shown = () => filter.value === '전체' ? items.value : items.value.filter(i => i.severity === filter.value)
+onMounted(async () => { items.value = allRows(await Review.queue(), 'GET /submissions') })
+const shown = computed(() => filter.value === '전체'
+  ? items.value
+  : items.value.filter(i => i.severity === filter.value))
+/** 필터 배지 숫자 — 렌더마다 세지 않고 한 번 센다 */
+const countOf = computed(() => Object.fromEntries(
+  FILTERS.map(f => [f, f === '전체' ? items.value.length : items.value.filter(i => i.severity === f).length]),
+))
 </script>
 
 <template>
@@ -20,16 +27,17 @@ const shown = () => filter.value === '전체' ? items.value : items.value.filter
 
   <div class="filters stage" style="--d:100ms">
     <button v-for="f in FILTERS" :key="f" :class="{ on: filter === f }" @click="filter = f">
-      {{ f }} <b>{{ f === '전체' ? items.length : items.filter(i => i.severity === f).length }}</b>
+      {{ f }} <b>{{ countOf[f] }}</b>
     </button>
   </div>
 
   <div class="alerts stage" style="--d:160ms">
-    <div v-for="r in shown()" :key="r.id" class="at link" @click="router.push(`/review/${r.id}`)">
+    <div v-for="r in shown" :key="r.id" v-clickable class="at link"
+         :aria-label="`${r.supplier} 검토`" @click="router.push(`/review/${r.id}`)">
       <span class="rule">{{ r.rule }}</span>
       <div><b>{{ r.supplier }}</b><span class="sub">{{ r.item }}</span></div>
       <span class="why">{{ r.why }}</span>
-      <span class="badge" :class="r.severity === 'HIGH' ? 'missing' : r.severity === 'MEDIUM' ? 'anomaly' : 'expiring'">{{ r.severity }}</span>
+      <StatusBadge :value="r.severity" />
       <span class="ago">검토</span>
     </div>
   </div>

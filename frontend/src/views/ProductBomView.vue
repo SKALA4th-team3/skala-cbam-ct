@@ -20,7 +20,8 @@ onMounted(async () => { p.value = await Products.get(route.params.id) })
 
   <div class="bom stage" style="--d:160ms">
     <div class="h"><span>부품명</span><span>공급 협력사</span><span>투입량 t/t</span><span>상태</span><span>벤치마크 팩터</span></div>
-    <div v-for="row in p?.parts ?? []" :key="row.name" class="bt link"
+    <div v-for="row in p?.parts ?? []" :key="row.name" v-clickable class="bt link"
+         :aria-label="`${row.name} ${row.state}`"
          @click="row.state === '미확정' ? router.push('/feedback') : ui.say(row.name + ' 는 확정된 값입니다')">
       <b>{{ row.name }}</b>
       <div class="cell sel">{{ row.supplier }}</div>
@@ -28,7 +29,7 @@ onMounted(async () => { p.value = await Products.get(route.params.id) })
       <StatusChip :label="row.state" :tone="row.state === '확정' ? 'complete' : 'missing'" />
       <div class="cell mono">{{ row.factor ?? '미등록' }}</div>
     </div>
-    <div class="add" @click="router.push('/parts')">
+    <div class="add" v-clickable aria-label="부품 추가" @click="router.push('/parts')">
       <span><svg class="i" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M12 5v14M5 12h14" /></svg></span>
       부품 추가 — 협력사가 아직 없으면 먼저 등록합니다
     </div>

@@ -1,10 +1,14 @@
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 
 /**
  * 목록 화면 공통 — 검색 + 패싯 필터 + 정렬.
+ *
  * 그룹 안은 OR, 그룹끼리는 AND.
  * 배지 숫자는 전체 데이터에서 세고 화면이 직접 세지 않는다.
  * 목업에서 배지와 실제 행이 어긋났던 게 이걸 안 지켜서였다.
+ *
+ * 반환값은 reactive 객체다 — ref 를 담은 plain object 를 돌려주면
+ * 템플릿에서까지 `t.filtered.value` 를 써야 한다. 화면 코드에 `.value` 가 보이면 안 된다.
  *
  * @param {import('vue').Ref<Array>} rows  전체 행
  * @param {{ search:string, facets:{key,label,field}[], sorts?:{key,fn}[] }} cfg
@@ -59,5 +63,9 @@ export function useTable(rows, cfg) {
   const isOn = (key, value) => (picked.value[key] ?? []).includes(value)
   const groupCount = key => (picked.value[key] ?? []).length
 
-  return { q, picked, sortKey, open, counts, filtered, chips, toggle, clearAll, isOn, groupCount, total: computed(() => rows.value.length) }
+  return reactive({
+    q, picked, sortKey, open, counts, filtered, chips,
+    toggle, clearAll, isOn, groupCount,
+    total: computed(() => rows.value.length),
+  })
 }

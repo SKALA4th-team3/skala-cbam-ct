@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
-import { Parts } from '@/api'
+import { Parts, allRows } from '@/api'
 import { useTable } from '@/composables/useTable'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router'
 
 const ui = useUi(); const router = useRouter()
 const rows = ref([])
-onMounted(async () => { rows.value = (await Parts.list({ size: 1000 })).content })
+onMounted(async () => { rows.value = allRows(await Parts.list({ size: 1000 }), 'GET /parts') })
 const facets = [
   { key: 'supplier', label: '공급 협력업체', field: 'supplier' },
   { key: 'cn', label: 'CN 코드', field: 'cnGroup' },
@@ -38,15 +38,17 @@ const gaps = computed(() => rows.value.filter(p => !p.factor).length)
 
   <div class="parts stage" style="--d:180ms">
     <div class="h"><span>부품명</span><span>CN 코드</span><span>공급 협력업체</span><span>벤치마크 팩터 · 단위</span></div>
-    <div v-for="p in t.filtered.value" :key="p.name" class="pt link" :class="{ gap: !p.factor }"
-         @click="router.push('/suppliers/1')">
+    <!-- 공급 협력사 상세로 간다. `자사 (포항)` 처럼 협력업체가 아닌 공급처는 갈 곳이 없어 링크가 아니다 -->
+    <div v-for="p in t.filtered" :key="p.name" class="pt" :class="{ gap: !p.factor, link: p.supplierId }"
+         v-clickable :aria-label="`${p.name} 의 공급 협력사`"
+         @click="p.supplierId ? router.push(`/suppliers/${p.supplierId}`) : ui.say(`${p.supplier} 은 등록된 협력업체가 아닙니다 — 상세 화면이 없습니다`)">
       <b>{{ p.name }}</b>
       <span class="sup">{{ p.cn }}</span>
       <span class="val">{{ p.supplier }}</span>
       <StatusChip v-if="p.factor" :label="p.factor" tone="complete" />
       <StatusChip v-else label="벤치마크 미등록" tone="missing" />
     </div>
-    <EmptyState v-if="!t.filtered.value.length" title="조건에 맞는 항목이 없습니다."
+    <EmptyState v-if="!t.filtered.length" title="조건에 맞는 항목이 없습니다."
       note="데이터가 없는 게 아니라 필터에 걸린 것이 없다는 뜻입니다."
       action="필터 해제" @action="t.clearAll()" />
   </div>

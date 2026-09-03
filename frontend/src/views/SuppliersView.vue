@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Suppliers } from '@/api'
+import { Suppliers, allRows } from '@/api'
 import { useTable } from '@/composables/useTable'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
@@ -11,7 +11,7 @@ import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
 const rows = ref([])
-onMounted(async () => { rows.value = (await Suppliers.list({ size: 1000 })).content })
+onMounted(async () => { rows.value = allRows(await Suppliers.list({ size: 1000 }), 'GET /suppliers') })
 
 const facets = [
   { key: 'country', label: '국가', field: 'country' },
@@ -44,12 +44,13 @@ const t = useTable(rows, { search: 'name', facets, sorts })
   <DataToolbar :table="t" :facets="facets" :sorts="sorts" placeholder="협력업체명 검색" unit="곳" />
 
   <div class="list stage" style="--d:180ms">
-    <div v-for="s in t.filtered.value" :key="s.id" class="row link" @click="router.push(`/suppliers/${s.id}`)">
+    <div v-for="s in t.filtered" :key="s.id" v-clickable class="row link"
+         :aria-label="`${s.name} 상세`" @click="router.push(`/suppliers/${s.id}`)">
       <div class="n"><b>{{ s.name }}</b><span>{{ s.city }} · {{ s.item }}</span></div>
       <SubmissionStrip :pattern="s.strip" />
       <StatusBadge :value="s.judgement" />
     </div>
-    <EmptyState v-if="!t.filtered.value.length"
+    <EmptyState v-if="!t.filtered.length"
       title="조건에 맞는 항목이 없습니다."
       note="데이터가 없는 게 아니라 필터에 걸린 것이 없다는 뜻입니다."
       action="필터 해제" @action="t.clearAll()" />

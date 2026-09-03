@@ -7,7 +7,7 @@ import DeadlineRing from '@/components/DeadlineRing.vue'
 import SparkBars from '@/components/SparkBars.vue'
 import SubmissionStrip from '@/components/SubmissionStrip.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { Review } from '@/api'
+import { Review, allRows } from '@/api'
 
 const board = useBoard()
 const router = useRouter()
@@ -16,7 +16,7 @@ const queue = ref([])
 
 onMounted(async () => {
   await board.load()
-  queue.value = (await Review.queue()).content
+  queue.value = allRows(await Review.queue(), 'GET /submissions')
 })
 
 const j = computed(() => board.judged)
@@ -32,7 +32,9 @@ const todo = computed(() => board.summary?.todo ?? [])
     <h1>미제출 <b>{{ j.미제출 }}곳</b>, 그중 <b>2곳</b>은 5개월째 답이 없습니다.</h1>
     <p>마감까지 <b>27일</b> 남았고, 미제출 {{ j.미제출 }}곳 중 2곳이 다섯 달째 회신이 없습니다.</p>
     <div class="acts">
-      <button class="quiet" @click="board.load()">재판정</button>
+      <button class="quiet" :disabled="board.loading" @click="board.reload()">
+        {{ board.loading ? '재판정 중…' : '재판정' }}
+      </button>
       <button class="tactile sm" @click="router.push('/feedback')">
         <span class="plate"></span><span class="cap">초안 17건 일괄 생성</span>
       </button>
@@ -55,7 +57,7 @@ const todo = computed(() => board.summary?.todo ?? [])
         <div class="note">최근 6개월 추이 · <span class="delta up">▲ {{ board.recalculated ? 3 : 2 }}</span> 지난달 대비</div>
       </div>
     </div>
-    <div class="ro link" @click="router.push('/deadlines')">
+    <div v-clickable class="ro link" aria-label="9월 마감 상세" @click="router.push('/deadlines')">
       <div class="cap">9월 마감</div>
       <div class="fig"><DeadlineRing label="D-27" /></div>
       <div>
@@ -72,21 +74,23 @@ const todo = computed(() => board.summary?.todo ?? [])
   </nav>
 
   <div v-if="tab === 't1'" class="list stage" style="--d:280ms">
-    <div v-for="s in todo" :key="s.id" class="row link" @click="router.push(`/suppliers/${s.id}`)">
+    <div v-for="s in todo" :key="s.id" v-clickable class="row link"
+         :aria-label="`${s.name} 상세`" @click="router.push(`/suppliers/${s.id}`)">
       <div class="n"><b>{{ s.name }}</b><span>{{ s.item }} · {{ s.why }}</span></div>
       <SubmissionStrip :pattern="s.strip" />
       <StatusBadge :value="s.judgement" />
     </div>
   </div>
   <div v-else-if="tab === 't2'" class="list stage" style="--d:280ms">
-    <div v-for="r in queue" :key="r.id" class="row al link" @click="router.push('/review')">
+    <div v-for="r in queue" :key="r.id" v-clickable class="row al link"
+         :aria-label="`${r.supplier} 검토`" @click="router.push(`/review/${r.id}`)">
       <div class="n"><b>{{ r.supplier }}</b><span>{{ r.item }}</span></div>
       <span class="rule">{{ r.rule }}</span><span class="why">{{ r.why }}</span>
-      <span class="badge" :class="r.severity === 'HIGH' ? 'missing' : r.severity === 'MEDIUM' ? 'anomaly' : 'expiring'">{{ r.severity }}</span>
+      <StatusBadge :value="r.severity" />
     </div>
   </div>
   <div v-else class="list stage" style="--d:280ms">
-    <div class="row link" @click="router.push('/inbox')">
+    <div v-clickable class="row link" aria-label="접수함 열기" @click="router.push('/inbox')">
       <div class="n"><b>오늘 4건이 들어왔습니다</b><span>접수함에서 원문과 첨부를 확인합니다</span></div>
     </div>
   </div>
