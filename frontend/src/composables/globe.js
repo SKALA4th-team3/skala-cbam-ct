@@ -1,4 +1,8 @@
-/* 배경 구 — 목업의 캔버스 렌더러를 그대로 옮겼다.
+/* 배경 구 — originkit.dev 「globe-mesh」(preset=base) 를 Vue·캔버스로 옮긴 것.
+   출처: https://www.originkit.dev/components/globe-mesh?preset=base
+   originkit CLI 는 React/Next 전용이라(shadcn 방식) 원본을 그대로 쓸 수 없어 직접 옮겼다.
+   npm 의 `originkit` CLI 패키지는 MIT 이지만 컴포넌트 자체의 조건은 확인하지 못했다 — 확인되면 이 주석을 고친다.
+   목업의 캔버스 렌더러를 그대로 옮겼다.
    화면이 바뀌면 구가 바뀌는 게 아니라 카메라만 움직인다. */
 /** 접근성 설정에서 모션을 줄인 사용자는 구를 돌리지 않는다 */
 const reduce = typeof matchMedia === 'function'
