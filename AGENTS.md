@@ -156,6 +156,7 @@ diff AGENTS.md CLAUDE.md && echo OK
 | 커밋 | `[BE] Feat: CBAM-12 24번 대제목` |
 | 흐름 | `CBAM-43` → `dev` → `main` — **PR은 `dev`로 낸다** |
 | Jira | Epic → Task → Subtask · `할 일` → `진행 중` → `완료` · 보드 `CBAM` |
+| Subtask | **브랜치는 Task 키로 하나만. 커밋에 Subtask 키를 넣어 나눈다** — Subtask 마다 브랜치를 따지 않는다 |
 
 ### 커밋에 요구사항 번호를 넣는다
 
