@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { suppliers as SEED } from '@/mocks/seed'
+import { Suppliers } from '@/api'
 import { useTable } from '@/composables/useTable'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
@@ -11,7 +11,7 @@ import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
 const rows = ref([])
-onMounted(() => { rows.value = SEED })
+onMounted(async () => { rows.value = (await Suppliers.list({ size: 1000 })).items })
 
 const SEV = { 미제출: 0, 부적격: 1, 적격: 2 }
 const facets = [

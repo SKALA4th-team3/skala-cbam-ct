@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
-import { parts as SEED } from '@/mocks/seed'
+import { Parts } from '@/api'
 import { useTable } from '@/composables/useTable'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router'
 
 const ui = useUi(); const router = useRouter()
 const rows = ref([])
-onMounted(() => { rows.value = SEED })
+onMounted(async () => { rows.value = (await Parts.list({ size: 1000 })).items })
 const facets = [
   { key: 'supplier', label: '공급 협력업체', field: 'supplier' },
   { key: 'cn', label: 'CN 코드', field: 'cnGroup' },

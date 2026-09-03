@@ -1,10 +1,27 @@
-/* 가짜 전송 계층.
-   실제 API 가 나오면 이 파일의 request() 만 fetch 로 바꾸면 된다.
-   응답 모양(성공/에러/202)은 실제 서버가 지켜야 할 계약 그대로 흉내낸다. */
+/* 전송 계층.
+   지금은 BE 가 없어 전부 목이다. 목이라는 사실을 숨기지 않기 위해
+   모든 호출이 자기 엔드포인트를 문자열로 들고 이 파일을 지나간다.
+
+   BE 가 붙으면 두 가지만 한다.
+   1) api/index.js 의 해당 호출에 세 번째 인자(real)를 채운다
+   2) .env 의 VITE_REAL_API 에 그 엔드포인트를 넣는다
+   화면 코드는 건드리지 않는다. */
 
 const LATENCY = [120, 320]          // 목이라는 걸 잊지 않게 일부러 조금 늦춘다
 const rand = (a, b) => a + Math.random() * (b - a)
 export const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+/** 실서버 주소. 목만 쓰는 동안에는 아무도 안 본다 */
+export const BASE = import.meta.env.VITE_API_BASE ?? '/api/v1'
+
+/** 실서버로 보낼 엔드포인트 목록 — .env 의 VITE_REAL_API 로 하나씩 늘린다 */
+const REAL = new Set(
+  (import.meta.env.VITE_REAL_API ?? '').split(',').map(s => s.trim()).filter(Boolean),
+)
+
+/** 이번 세션에서 실제로 불린 엔드포인트와 그 출처 — 화면이 부를 때마다 쌓인다 */
+export const wired = new Map()      // 'GET /suppliers' -> 'mock' | 'real'
+const mark = (endpoint, kind) => wired.set(endpoint, kind)
 
 /** 실제 서버의 에러 바디와 같은 모양 */
 export class ApiError extends Error {
@@ -14,8 +31,19 @@ export class ApiError extends Error {
   }
 }
 
-/** 모든 목 엔드포인트가 통과하는 지점 */
-export async function request(handler) {
+/**
+ * 모든 엔드포인트가 통과하는 지점.
+ * @param endpoint 'GET /suppliers' — 실제 경로. 주석이 아니라 값이라 세고 검사할 수 있다
+ * @param handler  목 구현
+ * @param real     실서버 구현. BE 가 나오면 채운다. 없으면 목으로 간다
+ */
+export async function request(endpoint, handler, real) {
+  if (REAL.has(endpoint)) {
+    if (!real) throw new Error(`VITE_REAL_API 에 ${endpoint} 가 있는데 실서버 구현이 없다`)
+    mark(endpoint, 'real')
+    return real(BASE)
+  }
+  mark(endpoint, 'mock')
   await sleep(rand(...LATENCY))
   return handler()
 }
@@ -26,12 +54,27 @@ export function page(items, { page = 1, size = 20 } = {}) {
   return { items: items.slice(start, start + size), page, size, total: items.length }
 }
 
+/** 개발 모드에서 지금 화면이 무엇을 보고 있는지 한 줄로 알린다 */
+export function logWiring() {
+  if (!import.meta.env.DEV) return
+  setTimeout(() => {
+    const all = [...wired.entries()]
+    const mocked = all.filter(([, k]) => k === 'mock')
+    console.info(
+      `%c[API] 실서버 ${all.length - mocked.length} · 목 ${mocked.length}`,
+      'color:#f5a623',
+      mocked.length ? `\n목: ${mocked.map(([e]) => e).join(', ')}` : '',
+    )
+  }, 2000)
+}
+
 /* ── 202 Accepted + 폴링 ────────────────────────────────────────────
    UC-05 자료 분석은 오래 걸리므로 즉시 taskId 를 주고 뒤에서 돈다.
    실제 서버도 같은 계약을 지켜야 화면 코드를 안 고친다. */
 const tasks = new Map()
 
-export function startTask(kind, { ms = 2600, result = null, fail = false } = {}) {
+export function startTask(endpoint, kind, { ms = 2600, result = null, fail = false } = {}) {
+  mark(endpoint, 'mock')
   const id = 'tsk-' + Math.random().toString(36).slice(2, 6)
   tasks.set(id, { id, kind, status: 'PENDING', startedAt: Date.now(), ms, result, fail })
   setTimeout(() => { const t = tasks.get(id); if (t && t.status === 'PENDING') t.status = 'PROCESSING' }, 400)
@@ -44,7 +87,7 @@ export function startTask(kind, { ms = 2600, result = null, fail = false } = {})
 }
 
 export async function getTask(id) {
-  return request(() => {
+  return request('GET /tasks/{id}', () => {
     const t = tasks.get(id)
     if (!t) throw new ApiError(404, 'TASK_NOT_FOUND', '해당 작업이 없습니다')
     return { taskId: t.id, status: t.status, resultId: t.status === 'COMPLETED' ? t.result : null, error: t.error || null }

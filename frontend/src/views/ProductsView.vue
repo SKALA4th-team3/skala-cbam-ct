@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { PRODUCTS } from '@/api/fixtures'
+import { Products } from '@/api'
 import { useTable } from '@/composables/useTable'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
@@ -11,7 +11,7 @@ import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
 const rows = ref([])
-onMounted(() => { rows.value = PRODUCTS })
+onMounted(async () => { rows.value = (await Products.list({ size: 1000 })).items })
 const facets = [{ key: 'cn', label: 'CN 코드', field: 'cnGroup' }]
 const t = useTable(rows, { search: 'name', facets })
 </script>

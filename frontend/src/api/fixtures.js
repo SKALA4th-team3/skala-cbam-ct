@@ -26,8 +26,10 @@ export const INBOX = [
   { id: 'sub-4', at: '08:12', supplier: null, from: 'unknown@nowhere.kr', subject: '자료 보냅니다', files: 'xlsx 1', state: '미확인', tone: 'missing' },
 ]
 
-/** UC-05 가 뱉는 표준화 결과 — 원문과 표준값을 나란히 둔다 (NFR-04: 추정 금지) */
-export const SUBMISSION = {
+/** UC-05 가 뱉는 표준화 결과 — 원문과 표준값을 나란히 둔다 (NFR-04: 추정 금지)
+    명세 31 이 확정을 막는 조건 셋(누락·판정·미등록 부품)을 전부 데이터로 들고 있어야
+    화면이 그것을 검사할 수 있다. sub-9 는 「막히는 쪽」을 눈으로 보기 위한 건이다. */
+const SUB_1 = {
   id: 'sub-1', supplier: '성진스틸', period: '2026 3분기', taskId: null,
   steps: ['업로드', '텍스트 추출', '항목 매핑', '단위 환산', '적격성 검증'],
   rows: [
@@ -38,7 +40,38 @@ export const SUBMISSION = {
     { field: 'fuel_natural_gas', raw: '연료 사용량: (기재 없음)',  value: null,   unit: '',    note: 'R2 missingFields 등재', tone: 'missing' },
   ],
   missingFields: ['fuel_natural_gas'],
+  judgement: '적격',            // 명세 상태값: 검토 대기 · 적격 · 부적격 · 미제출
+  unmappedParts: [],            // 명세 25 — 등록 부품과 매칭되지 않은 품명
 }
+
+const SUB_9 = {
+  id: 'sub-9', supplier: '한빛철강', period: '2026 3분기', taskId: null,
+  steps: SUB_1.steps,
+  rows: [
+    { field: 'electricity', raw: '전력사용량: 410,000 kWh', value: '410', unit: 'MWh', note: '환산 kWh→MWh', tone: 'complete' },
+    { field: 'part_name',   raw: '품명: 아연도금 증기',      value: '아연도금 증기', unit: '', note: 'R6 등록 부품과 매칭 실패', tone: 'missing' },
+  ],
+  missingFields: [],
+  judgement: '부적격',
+  unmappedParts: ['아연도금 증기'],
+}
+
+/* 세 조건을 모두 통과하는 건 — 없으면 「확정 → 집계 반영」을 한 번도 볼 수 없다 */
+const SUB_7 = {
+  id: 'sub-7', supplier: '우진포장', period: '2026 3분기', taskId: null,
+  steps: SUB_1.steps,
+  rows: [
+    { field: 'electricity',     raw: '전력사용량: 128,000 kWh', value: '128', unit: 'MWh', note: '환산 kWh→MWh', tone: 'complete' },
+    { field: 'fuel_anthracite', raw: '무연탄 210 t',            value: '210', unit: 't',   note: '확인',          tone: 'complete' },
+    { field: 'cn_code',         raw: '제품: 골판지 상자',        value: '4819 10', unit: '', note: '확인',         tone: 'complete' },
+  ],
+  missingFields: [],
+  judgement: '적격',
+  unmappedParts: [],
+}
+
+export const SUBMISSIONS = { 'sub-1': SUB_1, 'sub-7': SUB_7, 'sub-9': SUB_9 }
+export const SUBMISSION = SUB_1
 
 export const QUEUE = [
   { id: 'sub-1', supplier: '성진스틸',    item: '열연강판 · CN 7208', rule: 'R2', why: '필수 2개 누락',                 severity: 'HIGH' },
@@ -47,6 +80,7 @@ export const QUEUE = [
   { id: 'sub-4', supplier: '화신알루미늄', item: '압출재 · CN 7604',   rule: 'R4', why: '평균값 대비 +31%',              severity: 'MEDIUM' },
   { id: 'sub-5', supplier: '태양주물',    item: '철강 · CN 7325',     rule: 'R7', why: '이전 기간 대비 58% 증가',        severity: 'MEDIUM' },
   { id: 'sub-6', supplier: '대양금속',    item: '도금강판 · CN 7210', rule: 'R5', why: '단위 불명확',                   severity: 'LOW' },
+  { id: 'sub-7', supplier: '우진포장', item: '골판지 · CN 4819', rule: null, why: '규칙에 걸린 것 없음 · 확정 가능', severity: 'LOW' },
 ]
 
 /** UC-08 — 명세 33·34·35 의 검증 3종 */

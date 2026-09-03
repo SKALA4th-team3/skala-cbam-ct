@@ -1,15 +1,15 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { EMISSIONS } from '@/api/fixtures'
+import { useRoute, useRouter } from 'vue-router'
+import { Products } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import { useUi } from '@/stores/ui'
 
-const router = useRouter(); const ui = useUi()
+const route = useRoute(); const router = useRouter(); const ui = useUi()
 const p = ref(null)
-onMounted(() => { p.value = EMISSIONS['hr-2400'] })
+onMounted(async () => { p.value = await Products.emissions(route.params.id) })
 </script>
 
 <template>
