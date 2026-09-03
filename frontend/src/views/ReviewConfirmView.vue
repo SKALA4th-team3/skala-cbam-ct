@@ -11,12 +11,15 @@ import StatusChip from '@/components/StatusChip.vue'
 const route = useRoute(); const router = useRouter()
 const board = useBoard(); const ui = useUi()
 const sub = ref(null)
-const resolved = ref([])
 onMounted(async () => { sub.value = await Analysis.get(route.params.id) })
 
-/* 명세 31 — 「판정이 적격이고 미등록 부품이 없는 경우에만 확정할 수 있다」
+/* 담당자가 누락 값을 직접 채우는 기능은 없다 — 요구사항 29~32번에 없고 API 도 없다.
+   화면에만 채워지고 서버의 missingFields 는 그대로여서 확정이 400 으로 막혔다.
+   누락 건은 반려(32번) → 피드백 발송(50번)으로 흘려보낸다. 이슈 #14 에서 그렇게 정했다.
+
+   명세 31 — 「판정이 적격이고 미등록 부품이 없는 경우에만 확정할 수 있다」
    막는 조건은 셋이다. 누락만 보면 부적격 건이 그대로 확정된다. */
-const missing = computed(() => (sub.value?.missingFields ?? []).filter(f => !resolved.value.includes(f)))
+const missing = computed(() => sub.value?.missingFields ?? [])
 const blockers = computed(() => {
   const s = sub.value
   if (!s) return []
@@ -26,8 +29,6 @@ const blockers = computed(() => {
     ...(s.unmappedParts ?? []).map(p => `미등록 부품 · ${p}`),
   ]
 })
-
-function resolve(field) { resolved.value = [...resolved.value, field]; ui.say(field + ' 값을 채웠습니다') }
 
 async function confirm() {
   try {
@@ -49,27 +50,21 @@ async function confirm() {
 
   <div class="pair stage" style="--d:160ms">
     <div class="h"><span>협력사 원문 · rawText</span><span>표준 데이터</span></div>
-    <div v-for="r in sub?.rows ?? []" :key="r.field" class="pr2"
-         :class="resolved.includes(r.field) ? 'complete' : r.tone">
+    <div v-for="r in sub?.rows ?? []" :key="r.field" class="pr2" :class="r.tone">
       <div class="raw">{{ r.raw }}</div>
       <div class="std">
         <span class="fld">{{ r.field }}</span>
         <div class="v">
-          <b :class="{ nul: r.value === null && !resolved.includes(r.field) }">
-            {{ resolved.includes(r.field) ? '4,120' : (r.value ?? 'null') }}
-          </b>
+          <b :class="{ nul: r.value === null }">{{ r.value ?? 'null' }}</b>
           <span v-if="r.unit" class="u">{{ r.unit }}</span>
-          <StatusChip :label="resolved.includes(r.field) ? '담당자 입력' : r.note"
-                      :tone="resolved.includes(r.field) ? 'complete' : r.tone" />
-          <button v-if="missing.includes(r.field)" class="quiet" style="margin-left:8px"
-                  @click="resolve(r.field)">값 입력</button>
+          <StatusChip :label="r.note" :tone="r.tone" />
         </div>
       </div>
     </div>
   </div>
 
   <ActionBar :title="blockers.length ? blockers.join(' · ') + ' — 확정 버튼이 잠깁니다.' : '확정하면 재산정이 돌고 걸려 있던 판정이 스스로 해소됩니다.'"
-             note="화면이 잠가도 서버가 다시 막습니다 (400 NOT_QUALIFIED · 400 UNREGISTERED_PART_EXISTS)">
+             note="누락된 값을 담당자가 채우는 기능은 없습니다 — 반려해 피드백으로 보냅니다. 화면이 잠가도 서버가 다시 막습니다 (400 NOT_QUALIFIED · 400 UNREGISTERED_PART_EXISTS)">
     <button class="quiet" @click="Review.reject(route.params.id, 'R2 필수 항목 누락').then(() => { ui.say('반려했습니다 · 사유를 저장했습니다'); router.push('/feedback') })">반려</button>
     <button class="btn" :disabled="blockers.length > 0" @click="confirm">확정하기</button>
   </ActionBar>

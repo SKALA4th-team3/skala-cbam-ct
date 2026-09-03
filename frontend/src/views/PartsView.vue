@@ -26,7 +26,8 @@ const gaps = computed(() => rows.value.filter(p => !p.factor).length)
     <template #title>부품 {{ rows.length }}개</template>
     <template #lede>부품명이 키입니다. CN 코드는 8자리 숫자로 검증하고, 단위는 kg · ton · EA 중에서 고릅니다.</template>
     <template #acts>
-      <button class="quiet" @click="ui.say('엑셀 양식을 내려받아 행 단위로 검증합니다')">엑셀 일괄 등록</button>
+      <!-- 11번 엑셀 일괄 등록은 우선순위가 낮아 보류다 (이슈 #15). 버튼만 두고 하는 일을 숨기지 않는다 -->
+      <button class="quiet" @click="ui.say('엑셀 일괄 등록(11번)은 아직 준비 중입니다 — 부품 등록으로 한 건씩 넣습니다')">엑셀 일괄 등록</button>
       <button class="quiet" @click="ui.say('부품 등록은 부품명 · CN 코드 · 공급 협력업체 · 단위를 받습니다')">
         <svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>부품 등록
       </button>
