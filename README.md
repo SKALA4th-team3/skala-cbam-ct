@@ -30,9 +30,9 @@ cd backend  && ./gradlew bootRun            # http://localhost:8080
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-개발 환경은 기본 `dev` 프로필의 H2 인메모리를 사용한다. 운영 환경은 PostgreSQL을 사용한다 — [ADR-0004](docs/decisions/0004-database-profiles.md).
+개발·발표·운영 환경은 PostgreSQL을 사용한다. PostgreSQL 컨테이너가 빈 볼륨을 처음 만들 때 초기화 SQL을 실행하며, 테스트만 격리된 H2를 사용한다 — [ADR-0010](docs/decisions/0010-postgresql-development-and-init-sql.md).
 
-### 운영 PostgreSQL
+### PostgreSQL
 
 루트의 `.env.example`을 `.env`로 복사하고 DB 값을 채운 뒤, Docker Desktop을 실행한다.
 
@@ -42,7 +42,15 @@ docker compose ps
 docker compose logs -f postgres
 ```
 
-Docker Compose는 루트의 `.env`를 읽지만 Spring Boot는 이 파일을 자동으로 읽지 않는다. PostgreSQL에 애플리케이션을 연결하려면 `.env`의 값을 환경 변수로 불러오고 `prod` 프로필로 실행한다.
+기본 `docker compose up`은 `docker-compose.override.yml`을 자동으로 합친다. 빈 DB에 `init_db.sql`로 스키마와 국가 기준정보를 만들고, 이어서 `init_demo_data.sql`로 개발·발표용 샘플 데이터를 넣는다.
+
+운영 환경은 override를 제외해 샘플 데이터가 들어가지 않도록 기본 Compose 파일만 명시한다.
+
+```bash
+docker compose -f docker-compose.yml up -d
+```
+
+Docker Compose는 루트의 `.env`를 읽지만 Spring Boot는 이 파일을 자동으로 읽지 않는다. PostgreSQL에 애플리케이션을 연결하려면 `.env` 값을 실행 셸의 환경변수로 불러온다. 일반 개발·발표는 `dev`, 운영은 `prod` 프로필을 사용한다.
 
 macOS/Linux:
 
@@ -50,14 +58,14 @@ macOS/Linux:
 set -a
 source .env
 set +a
-export SPRING_PROFILES_ACTIVE=prod
+export SPRING_PROFILES_ACTIVE=dev
 cd backend && ./gradlew bootRun
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = "prod"
+$env:SPRING_PROFILES_ACTIVE = "dev"
 $env:DB_URL = "jdbc:postgresql://localhost:5432/cbam"
 $env:DB_USERNAME = "<.env의 DB_USERNAME>"
 $env:DB_PASSWORD = "<.env의 DB_PASSWORD>"
@@ -78,7 +86,7 @@ DB 데이터까지 초기화할 때만 `--volumes`를 붙인다. **이 명령은
 docker compose down --volumes
 ```
 
-운영 프로필의 Hibernate는 `ddl-auto=validate`이므로 테이블을 자동 생성하지 않는다. 현재는 초기 운영 스키마가 준비되지 않아 `missing table [supplier]` 오류로 애플리케이션 기동이 실패한다. 초기 스키마를 별도 절차로 준비한 뒤 실행해야 한다.
+초기화 SQL은 PostgreSQL 데이터 볼륨을 처음 생성할 때만 실행된다. SQL 변경을 기존 볼륨에 자동 적용하지 않으므로 초기 상태로 다시 만들 때만 `docker compose down --volumes` 후 재기동한다. 샘플 데이터 이메일은 모두 `example.test` 예약 도메인이다.
 
 ## 개발 시작할 때
 
