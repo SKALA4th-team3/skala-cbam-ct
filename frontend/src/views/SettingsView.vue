@@ -1,19 +1,19 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { Rules } from '@/api'
+import { ref } from 'vue'
+import { CHECKS, SEVERITIES } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import { useUi } from '@/stores/ui'
 
 const ui = useUi()
-const checks = ref([]); const severities = ref([])
-onMounted(async () => { const r = await Rules.get(); checks.value = r.checks; severities.value = r.severities })
+/* 판정 규칙은 서버 내부 정의다. API 명세 v10 에 조회 엔드포인트가 없어 화면이 상수로 읽는다. */
+const checks = ref(CHECKS); const severities = ref(SEVERITIES)
 function pick(c, v) { c.value = v; ui.say(`${c.title} → ${v} · 다음 판정부터 적용됩니다`) }
 const badge = s => s === 'HIGH' ? 'missing' : s === 'MEDIUM' ? 'anomaly' : 'expiring'
 </script>
 
 <template>
-  <ViewHead api="UC-08 · 적격 판정 · GET /rules">
+  <ViewHead api="UC-08 · 적격 판정 · 서버 내부 정의 (조회 API 없음)">
     <template #title>적격 판정 기준</template>
     <template #lede>검증 세 가지를 모두 통과하면 적격, 하나라도 걸리면 부적격입니다. 임계값은 다음 판정부터 적용됩니다.</template>
   </ViewHead>

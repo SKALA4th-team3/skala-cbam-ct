@@ -11,7 +11,7 @@ import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
 const rows = ref([])
-onMounted(async () => { rows.value = (await Suppliers.list({ size: 1000 })).items })
+onMounted(async () => { rows.value = (await Suppliers.list({ size: 1000 })).content })
 
 const SEV = { 미제출: 0, 부적격: 1, 적격: 2 }
 const facets = [

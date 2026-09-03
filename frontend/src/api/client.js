@@ -14,6 +14,11 @@ export const sleep = ms => new Promise(r => setTimeout(r, ms))
 /** 실서버 주소. 목만 쓰는 동안에는 아무도 안 본다 */
 export const BASE = import.meta.env.VITE_API_BASE ?? '/api/v1'
 
+/** 담당자 식별자. 명세 v10 규약 2항 — 인증 수단이 아니라 감사 기록용이다.
+    상태를 바꾸는 요청은 이 헤더로 행위자를 남긴다(confirmedBy·rejectedBy·editedBy …). */
+export const operatorId = import.meta.env.VITE_OPERATOR_ID ?? 'demo'
+export const headers = () => ({ 'Content-Type': 'application/json', 'X-Operator-Id': operatorId })
+
 /** 실서버로 보낼 엔드포인트 목록 — .env 의 VITE_REAL_API 로 하나씩 늘린다 */
 const REAL = new Set(
   (import.meta.env.VITE_REAL_API ?? '').split(',').map(s => s.trim()).filter(Boolean),
@@ -23,11 +28,17 @@ const REAL = new Set(
 export const wired = new Map()      // 'GET /suppliers' -> 'mock' | 'real'
 const mark = (endpoint, kind) => wired.set(endpoint, kind)
 
-/** 실제 서버의 에러 바디와 같은 모양 */
+/** 실제 서버의 에러 바디와 같은 모양 — API 명세서 v10 규약 3항 */
 export class ApiError extends Error {
-  constructor(status, code, message, fields) {
+  constructor(status, code, message, details) {
     super(message)
-    this.status = status; this.code = code; this.fields = fields || null
+    this.status = status; this.code = code
+    this.details = details || {}
+    this.timestamp = new Date().toISOString()
+  }
+  /** 서버가 내려줄 바디 그대로 */
+  get body() {
+    return { timestamp: this.timestamp, status: this.status, code: this.code, message: this.message, details: this.details }
   }
 }
 
@@ -48,10 +59,17 @@ export async function request(endpoint, handler, real) {
   return handler()
 }
 
-/** 목록 응답 공통 봉투 — 실제 API 도 이 모양을 지킨다 */
-export function page(items, { page = 1, size = 20 } = {}) {
-  const start = (page - 1) * size
-  return { items: items.slice(start, start + size), page, size, total: items.length }
+/** 목록 응답 공통 봉투 — API 명세서 v10 규약 4항.
+    목록 API 는 예외 없이 content·page·size·totalElements·totalPages 다섯 키를 반환한다.
+    page 는 0부터다. */
+export function page(rows, { page = 0, size = 20 } = {}) {
+  const start = page * size
+  return {
+    content: rows.slice(start, start + size),
+    page, size,
+    totalElements: rows.length,
+    totalPages: Math.max(1, Math.ceil(rows.length / size)),
+  }
 }
 
 /** 개발 모드에서 지금 화면이 무엇을 보고 있는지 한 줄로 알린다 */
@@ -87,7 +105,7 @@ export function startTask(endpoint, kind, { ms = 2600, result = null, fail = fal
 }
 
 export async function getTask(id) {
-  return request('GET /tasks/{id}', () => {
+  return request('GET /tasks/{taskId}', () => {
     const t = tasks.get(id)
     if (!t) throw new ApiError(404, 'TASK_NOT_FOUND', '해당 작업이 없습니다')
     return { taskId: t.id, status: t.status, resultId: t.status === 'COMPLETED' ? t.result : null, error: t.error || null }

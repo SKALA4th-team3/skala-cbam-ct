@@ -15,8 +15,9 @@ let timer = null
 
 onMounted(async () => {
   sub.value = await Analysis.get(route.params.id)
-  /* 202 를 받고 폴링한다. 진짜 서버가 와도 이 코드는 그대로다. */
-  const { taskId, pollAfterMs } = Analysis.parse(route.params.id)
+  /* 분석은 접수·수동 매칭 직후 자동 실행된다(요구사항 20). 화면이 실행을 요청하는 API 는 없다.
+     상세가 준 latestAnalysisTaskId 로 №19를 폴링만 한다. */
+  const { latestAnalysisTaskId: taskId, pollAfterMs } = sub.value
   timer = setInterval(async () => {
     const t = await Analysis.task(taskId)
     if (t.status === 'PROCESSING') step.value = 4
@@ -32,7 +33,7 @@ const canPass = computed(() => state.value === 'done')
 </script>
 
 <template>
-  <ViewHead api="UC-05 · AI 분석 · POST /submissions/{id}/parse → 202"
+  <ViewHead api="UC-05 · AI 분석 · GET /submissions/{submissionId} → GET /tasks/{taskId}"
             back="접수함" backTo="/inbox">
     <template #title>
       {{ state === 'done' ? `${sub?.supplier} ${sub?.period} 자료를 읽었습니다.`

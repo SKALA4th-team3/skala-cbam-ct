@@ -8,12 +8,12 @@ import StatusChip from '@/components/StatusChip.vue'
 
 const router = useRouter()
 const e = ref(null)
-onMounted(async () => { e.value = await Products.emissions('hr-2400') })
+onMounted(async () => { e.value = await Products.get('hr-2400') })
 const pct = computed(() => e.value ? Math.round(e.value.confirmed / e.value.total * 100) : 0)
 </script>
 
 <template>
-  <ViewHead v-if="e" api="UC-03 · 완제품 · GET /products/{id}/emissions" back="제품" backTo="/products">
+  <ViewHead v-if="e" api="UC-03 · 완제품 · GET /products/{productId}" back="제품" backTo="/products">
     <template #title>{{ e.product }} 은 아직 신고할 수 없습니다.</template>
     <template #lede>부품 하나라도 확정되지 않으면 내재배출량이 확정되지 않습니다. 빗금은 아직 값이 없다는 뜻입니다.</template>
   </ViewHead>

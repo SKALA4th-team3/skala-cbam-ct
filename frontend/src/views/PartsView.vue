@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router'
 
 const ui = useUi(); const router = useRouter()
 const rows = ref([])
-onMounted(async () => { rows.value = (await Parts.list({ size: 1000 })).items })
+onMounted(async () => { rows.value = (await Parts.list({ size: 1000 })).content })
 const facets = [
   { key: 'supplier', label: '공급 협력업체', field: 'supplier' },
   { key: 'cn', label: 'CN 코드', field: 'cnGroup' },

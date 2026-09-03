@@ -8,12 +8,12 @@ const router = useRouter()
 const items = ref([])
 const filter = ref('전체')
 const FILTERS = ['전체', 'HIGH', 'MEDIUM', 'LOW']
-onMounted(async () => { items.value = (await Review.queue()).items })
+onMounted(async () => { items.value = (await Review.queue()).content })
 const shown = () => filter.value === '전체' ? items.value : items.value.filter(i => i.severity === filter.value)
 </script>
 
 <template>
-  <ViewHead api="UC-07 · 데이터 검토 · GET /submissions?status=review">
+  <ViewHead api="UC-07 · 데이터 검토 · GET /submissions?status=REVIEW_PENDING">
     <template #title>검토 대기 {{ items.length }}건이 심각도 순으로 서 있습니다.</template>
     <template #lede>판정 사유(R 코드)와 심각도를 함께 보여줍니다. 처리한 건은 목록에서 지우지 않고 resolved_at 과 함께 남깁니다.</template>
   </ViewHead>

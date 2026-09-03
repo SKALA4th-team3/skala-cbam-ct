@@ -9,17 +9,17 @@ import { useUi } from '@/stores/ui'
 
 const router = useRouter(); const ui = useUi()
 const items = ref([])
-onMounted(async () => { items.value = (await Inbox.list()).items })
+onMounted(async () => { items.value = (await Inbox.list()).content })
 
 async function assign(m) {
   await Inbox.assign(m.id, '대한화학')
   ui.say('미확인 건을 대한화학으로 지정했습니다')
-  items.value = (await Inbox.list()).items
+  items.value = (await Inbox.list()).content
 }
 </script>
 
 <template>
-  <ViewHead api="UC-04 · 이메일 접수 · 지정 메일함 1분 폴링">
+  <ViewHead api="UC-04 · 이메일 접수 · GET /mail-receipts (수신은 스케줄러)">
     <template #title>오늘 {{ items.length }}건이 들어왔습니다.</template>
     <template #lede>협력사가 보낸 메일을 그대로 받습니다. 사람이 다시 옮겨 적지 않습니다.</template>
   </ViewHead>

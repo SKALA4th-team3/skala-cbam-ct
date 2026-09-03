@@ -9,8 +9,8 @@ import { useUi } from '@/stores/ui'
 const ui = useUi()
 const months = ref([]); const rows = ref([])
 onMounted(async () => {
-  months.value = (await Deadlines.list()).items
-  rows.value = (await Deadlines.unsubmitted()).items
+  months.value = (await Deadlines.list()).months
+  rows.value = (await Deadlines.unsubmitted()).content
 })
 const picked = computed(() => rows.value.filter(r => r.checked))
 async function send() {
@@ -22,7 +22,7 @@ async function send() {
 </script>
 
 <template>
-  <ViewHead api="UC-09 · 마감 · GET /deadlines" back="관제" backTo="/">
+  <ViewHead api="UC-09 · 마감 · GET /submission-deadlines" back="관제" backTo="/">
     <template #title>9월 마감까지 <b>27일</b> 남았습니다.</template>
     <template #lede>마감일은 매월 말일로 고정입니다. D-7 부터 미제출 업체에 경보가 뜹니다.</template>
   </ViewHead>

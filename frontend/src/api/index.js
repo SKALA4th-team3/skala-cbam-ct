@@ -1,51 +1,52 @@
 /* 화면이 부르는 API 표면 전부.
-   각 함수는 실제 엔드포인트 하나와 1:1 이고, 주석에 그 경로를 적어 둔다.
-   BE 가 나오면 여기 본문만 fetch 로 갈아끼운다. 화면 코드는 건드릴 일이 없다. */
+   경로·메서드·응답 봉투·에러 코드는 「CBAM API 명세서 v10」을 그대로 따른다.
+   각 함수는 명세의 엔드포인트 하나와 1:1 이고, 그 경로를 request() 의 첫 인자로 들고 있다.
+   BE 가 붙으면 여기 본문만 fetch 로 갈아끼운다. 화면 코드는 건드릴 일이 없다.
+
+   ⚠️ 목이 쓰는 상태값은 한글(협력유지중·적격·미제출 …)이고 명세는 영문 enum
+      (ACTIVE·QUALIFIED·NOT_SUBMITTED …)이다. 실서버를 붙일 때 이 파일에서 변환한다 — enums.js 참고. */
 import { request, page, startTask, getTask, ApiError } from './client'
 import { suppliers, parts } from '@/mocks/seed'
-import { PRODUCTS, EMISSIONS, INBOX, SUBMISSION, SUBMISSIONS, QUEUE, CHECKS, SEVERITIES, DEADLINES, REMINDERS, DISPATCH, TONES } from './fixtures'
+import { PRODUCTS, EMISSIONS, INBOX, SUBMISSION, SUBMISSIONS, QUEUE, DEADLINES, REMINDERS, DISPATCH, TONES } from './fixtures'
 
 const clone = v => JSON.parse(JSON.stringify(v))
 let SUP = clone(suppliers)
 let PRT = clone(parts)
+const SEV = { 미제출: 0, 부적격: 1, 적격: 2 }
 
-/* ── UC-01 협력업체 ─────────────────────────────────────── */
+/* ── 협력업체 (명세 №1~4) ───────────────────────────────── */
 export const Suppliers = {
-  /** GET /suppliers?q&country&tie&judgement&page */
+  /** №3 GET /suppliers?search&country&status&submissionStatus&months&page&size&sort */
   list: (q = {}) => request('GET /suppliers', () => {
     let rows = SUP
     if (q.q) rows = rows.filter(s => s.name.toLowerCase().includes(q.q.toLowerCase()))
-    for (const [k, key] of [['country', 'country'], ['tie', 'tie'], ['judgement', 'judgement']])
-      if (q[k]?.length) rows = rows.filter(s => q[k].includes(s[key]))
+    for (const k of ['country', 'tie', 'judgement'])
+      if (q[k]?.length) rows = rows.filter(s => q[k].includes(s[k]))
     if (q.sort === '업체명순') rows = [...rows].sort((a, b) => a.name.localeCompare(b.name))
     else rows = [...rows].sort((a, b) => SEV[a.judgement] - SEV[b.judgement])
     return page(rows, q)
   }),
-  /** GET /suppliers/{id} */
-  get: id => request('GET /suppliers/{id}', () => {
+  /** №4 GET /suppliers/{supplierId} */
+  get: id => request('GET /suppliers/{supplierId}', () => {
     const s = SUP.find(x => x.id === +id)
     if (!s) throw new ApiError(404, 'SUPPLIER_NOT_FOUND', '없는 협력업체입니다')
     return { ...s, parts: PRT.filter(p => p.supplier === s.name) }
   }),
-  /** POST /suppliers */
+  /** №1 POST /suppliers */
   create: body => request('POST /suppliers', () => {
-    const dup = SUP.find(s => s.bizNo && s.bizNo === body.bizNo) || SUP.find(s => s.email && s.email === body.email)
-    if (dup) throw new ApiError(409, 'DUPLICATE', '사업자 등록번호나 담당자 이메일이 이미 있습니다', ['bizNo', 'email'])
+    if (SUP.some(s => s.bizNo && s.bizNo === body.bizNo))
+      throw new ApiError(409, 'DUPLICATE_BUSINESS_NUMBER', '이미 등록된 사업자등록번호입니다', { fields: ['bizNo'] })
+    if (SUP.some(s => s.email && s.email === body.email))
+      throw new ApiError(409, 'DUPLICATE_CONTACT_EMAIL', '이미 등록된 담당자 이메일입니다', { fields: ['email'] })
     const row = { id: SUP.length + 1, judgement: '미제출', tie: '협력유지중', strip: '0'.repeat(12), ...body }
     SUP = [row, ...SUP]
     return row
   }),
-  /** GET /suppliers/facets — 필터 배지 숫자. 화면이 직접 세지 않는다 */
-  facets: () => request('GET /suppliers/facets', () => ({
-    country: count(SUP, 'country'), tie: count(SUP, 'tie'), judgement: count(SUP, 'judgement'), total: SUP.length,
-  })),
 }
-const SEV = { 미제출: 0, 부적격: 1, 적격: 2 }
-const count = (rows, k) => rows.reduce((m, r) => (m[r[k]] = (m[r[k]] || 0) + 1, m), {})
 
-/* ── UC-02 부품 ─────────────────────────────────────────── */
+/* ── 부품 (명세 №5~8) ───────────────────────────────────── */
 export const Parts = {
-  /** GET /parts?q&supplier&cn */
+  /** №7 GET /parts?search&supplierId&cnCode&page&size&sort */
   list: (q = {}) => request('GET /parts', () => {
     let rows = PRT
     if (q.q) rows = rows.filter(p => p.name.includes(q.q))
@@ -53,108 +54,119 @@ export const Parts = {
     if (q.cn?.length) rows = rows.filter(p => q.cn.includes(p.cnGroup))
     return page(rows, { ...q, size: q.size ?? 50 })
   }),
-  facets: () => request('GET /parts/facets', () => ({ supplier: count(PRT, 'supplier'), cn: count(PRT, 'cnGroup'), total: PRT.length })),
-  /** POST /parts — 미등록 부품을 담당자가 직접 등록한다 (명세 28) */
+  /** №5 POST /parts — unregisteredPartId 를 함께 보내면 미등록 부품을 해소한다 (요구사항 28) */
   create: body => request('POST /parts', () => {
-    if (!/^\d{4} ?\d{2}$/.test(body.cn || '')) throw new ApiError(400, 'INVALID_CN', 'CN 코드는 8자리 숫자입니다', ['cn'])
-    if (PRT.some(p => p.name === body.name)) throw new ApiError(409, 'DUPLICATE', '같은 부품명이 이미 있습니다', ['name'])
+    if (!/^\d{4} ?\d{2}$/.test(body.cn || ''))
+      throw new ApiError(400, 'INVALID_CN_CODE', 'CN코드는 8자리 숫자여야 합니다', { fields: ['cn'] })
+    if (PRT.some(p => p.name === body.name))
+      throw new ApiError(409, 'DUPLICATE_PART_NAME', '같은 부품명이 이미 있습니다', { fields: ['name'] })
     const row = { factor: null, unit: 'tCO2e/t', ...body }
     PRT = [row, ...PRT]
     return row
   }),
 }
 
-/* ── UC-03 완제품 ───────────────────────────────────────── */
+/* ── 완제품 (명세 №9~12) ────────────────────────────────── */
 export const Products = {
-  /** GET /products */
+  /** №11 GET /products?search&cnCode&reportingMonth&calculationStatus */
   list: (q = {}) => request('GET /products', () => {
     let rows = PRODUCTS
     if (q.q) rows = rows.filter(p => p.name.includes(q.q))
     if (q.cn?.length) rows = rows.filter(p => q.cn.includes(p.cnGroup))
-    return page(rows, { ...q, size: 20 })
+    return page(rows, { ...q, size: q.size ?? 20 })
   }),
-  facets: () => request('GET /products/facets', () => ({ cn: count(PRODUCTS, 'cnGroup'), total: PRODUCTS.length })),
-  /** GET /products/{id}/emissions */
-  emissions: id => request('GET /products/{id}/emissions', () => EMISSIONS[id] || EMISSIONS['hr-2400']),
+  /** №12 GET /products/{productId} — 상세와 내재배출량을 한 번에 준다 (v10에서 통합) */
+  get: id => request('GET /products/{productId}', () => EMISSIONS[id] || EMISSIONS['hr-2400']),
 }
 
-/* ── UC-04 이메일 접수 ──────────────────────────────────── */
+/* ── 이메일 접수 (명세 №15~18) ──────────────────────────── */
 export const Inbox = {
-  /** GET /submissions/inbox */
-  list: () => request('GET /submissions/inbox', () => ({ items: INBOX })),
-  /** PUT /submissions/{id}/supplier — 미확인 건에 협력업체를 직접 지정 */
-  assign: (id, supplierName) => request('PUT /submissions/{id}/supplier', () => {
+  /** №15 GET /mail-receipts?supplierId&status&receivedFrom&receivedTo */
+  list: () => request('GET /mail-receipts', () => page(INBOX, { size: 100 })),
+  /** №18 PATCH /mail-receipts/{receiptId}/supplier — 미확인 건을 담당자가 직접 연결한다 */
+  assign: (id, supplierName) => request('PATCH /mail-receipts/{receiptId}/supplier', () => {
     const m = INBOX.find(x => x.id === id); if (m) { m.supplier = supplierName; m.state = '검토 대기' }
     return m
   }),
 }
 
-/* ── UC-05 AI 분석 ──────────────────────────────────────── */
+/* ── 제출 데이터 · 검토 (명세 №19~23) ───────────────────── */
 export const Analysis = {
-  /** POST /submissions/{id}/parse → 202 { taskId } */
-  parse: (id, opts) => startTask('POST /submissions/{id}/parse', 'parse', { result: id, ...opts }),
-  /** GET /tasks/{id} */
+  /** №21 GET /submissions/{submissionId}
+      AI 분석은 접수·수동 매칭 직후 자동 실행된다(요구사항 20). 화면이 실행을 요청하는 API 는 없다.
+      진행 상태는 응답의 latestAnalysisTaskId 로 №19를 폴링해 확인한다. */
+  get: id => request('GET /submissions/{submissionId}', () => {
+    const s = SUBMISSIONS[id] ?? SUBMISSION
+    const task = startTask('내부 자동 실행 (요구사항 20)', 'analyze', { result: id })
+    return { ...s, latestAnalysisTaskId: task.taskId, pollAfterMs: task.pollAfterMs }
+  }),
+  /** №19 GET /tasks/{taskId} */
   task: getTask,
-  /** GET /submissions/{id} */
-  get: id => request('GET /submissions/{id}', () => SUBMISSIONS[id] ?? SUBMISSION),
 }
 
-/* ── UC-07 검토 ─────────────────────────────────────────── */
 export const Review = {
-  /** GET /submissions?status=review */
-  queue: () => request('GET /submissions', () => ({ items: QUEUE })),
-  /** PUT /submissions/{id} → CONFIRMED */
-  /* 명세 31 — 「판정이 적격이고 미등록 부품이 없는 경우에만 확정할 수 있다」
+  /** №20 GET /submissions?supplierId&partId&reportingMonth&status&judgement&severity */
+  queue: () => request('GET /submissions', () => page(QUEUE, { size: 100 })),
+  /* №22 POST /submissions/{submissionId}/confirm
+     요구사항 31 — 「판정이 적격이고 미등록 부품이 없는 경우에만 확정할 수 있다」
      화면이 버튼을 잠그더라도 서버가 다시 막는다. 실제 BE 도 이 셋을 지켜야 한다. */
-  confirm: id => request('PUT /submissions/{id}', () => {
+  confirm: id => request('POST /submissions/{submissionId}/confirm', () => {
     const s = SUBMISSIONS[id] ?? SUBMISSION
     if (s.missingFields.length)
-      throw new ApiError(400, 'MISSING_FIELDS', '누락 항목이 있어 확정할 수 없습니다', s.missingFields)
+      throw new ApiError(400, 'NOT_QUALIFIED', '필수 항목이 누락돼 확정할 수 없습니다', { missingFields: s.missingFields })
     if (s.judgement !== '적격')
-      throw new ApiError(409, 'NOT_ELIGIBLE', `판정이 ${s.judgement} 이라 확정할 수 없습니다`)
+      throw new ApiError(400, 'NOT_QUALIFIED', `판정이 ${s.judgement} 이라 확정할 수 없습니다`)
     if (s.unmappedParts.length)
-      throw new ApiError(409, 'UNMAPPED_PARTS', '미등록 부품이 있어 확정할 수 없습니다', s.unmappedParts)
-    return { id, status: 'CONFIRMED', confirmedAt: '2026-09-02T15:10:00+09:00' }
+      throw new ApiError(400, 'UNREGISTERED_PART_EXISTS', '미등록 부품이 있어 확정할 수 없습니다', { unregisteredPartIds: s.unmappedParts })
+    return { submissionId: id, status: 'CONFIRMED', confirmedBy: '이과장', confirmedAt: '2026-09-02T15:10:00+09:00' }
   }),
-  /** PUT /submissions/{id}/reject */
-  reject: (id, reason) => request('PUT /submissions/{id}/reject', () => ({ id, status: 'REJECTED', reason })),
+  /** №23 POST /submissions/{submissionId}/reject — resultStatus 는 REJECTED | NOT_SUBMITTED */
+  reject: (id, reason, resultStatus = 'REJECTED') =>
+    request('POST /submissions/{submissionId}/reject', () => ({
+      submissionId: id, status: resultStatus, judgement: 'UNQUALIFIED',
+      reasonCode: 'MISSING_REQUIRED_FIELD', reason, rejectedBy: '이과장',
+    })),
 }
 
-/* ── UC-08 적격 판정 ────────────────────────────────────── */
-export const Rules = {
-  /** GET /rules */
-  get: () => request('GET /rules', () => ({ checks: CHECKS, severities: SEVERITIES })),
-  /** PUT /rules */
-  update: body => request('PUT /rules', () => ({ ...body, appliesFrom: 'next' })),
-}
-
-/* ── UC-09 마감 ─────────────────────────────────────────── */
+/* ── 제출 마감 (명세 №13~14) ────────────────────────────── */
 export const Deadlines = {
-  /** GET /deadlines */
-  list: () => request('GET /deadlines', () => ({ items: DEADLINES })),
-  /** GET /deadlines/current/unsubmitted */
-  unsubmitted: () => request('GET /deadlines/current/unsubmitted', () => ({ items: REMINDERS })),
-  /** POST /reminders { supplierIds } */
-  remind: ids => request('POST /reminders', () => ({ sent: ids.length, sentAt: '2026-09-03' })),
+  /** №13 GET /submission-deadlines?from&to — 월 목록은 범위 조회, 페이징하지 않는다 */
+  list: () => request('GET /submission-deadlines', () => ({ from: '2025-10', to: '2026-09', months: DEADLINES })),
+  /** №20 GET /submissions?status=NOT_SUBMITTED — 미제출은 제출 데이터 행이 없어 target 으로 식별한다 */
+  unsubmitted: () => request('GET /submissions', () => page(REMINDERS, { size: 100 })),
+  /** №14 POST /reminders { reportingMonth, targets:[{supplierId, partId}] } */
+  remind: targets => request('POST /reminders', () => ({
+    taskId: 'tsk-101', status: 'PENDING', targetCount: targets.length,
+  })),
 }
 
-/* ── UC-10·11 피드백 ────────────────────────────────────── */
+/* ── 피드백 (명세 №26~31) ───────────────────────────────── */
 export const Feedback = {
-  /** POST /feedback/draft { submissionId, tone } */
-  draft: (submissionId, tone = '격식') => request('POST /feedback/draft', () => ({ submissionId, tone, body: TONES[tone] })),
-  /** GET /feedback */
-  list: () => request('GET /feedback', () => ({ items: DISPATCH })),
-  /** PUT /feedback/{id}/confirm */
-  confirm: id => request('PUT /feedback/{id}/confirm', () => ({ id, status: '발송 대기', locked: true })),
-  /** POST /feedback/{id}/send */
-  send: ids => request('POST /feedback/{id}/send', () => ({ sent: ids.length })),
-  /** POST /feedback/{id}/resend */
-  resend: id => request('POST /feedback/{id}/resend', () => ({ id, resendCount: 2 })),
+  /** №26 POST /feedback-drafts { reportingMonth, submissionIds, targets, style } */
+  draft: (submissionId, tone = '격식') => request('POST /feedback-drafts', () => ({
+    submissionId, style: tone, body: TONES[tone], version: 1, source: 'AI', status: 'DRAFT',
+  })),
+  /** №31 GET /suppliers/{supplierId}/feedback-histories?type&status&from&to
+      ⚠️ 명세는 협력업체별 조회만 정의한다. 지금 화면은 전체 발송 목록을 보여준다 — 팀 확인 필요 */
+  list: () => request('GET /suppliers/{supplierId}/feedback-histories', () => page(DISPATCH, { size: 100 })),
+  /** №29 PATCH /feedback-drafts/{draftId} { status: 'READY_TO_SEND' } — 확정 */
+  confirm: id => request('PATCH /feedback-drafts/{draftId}', () => ({
+    draftId: id, status: 'READY_TO_SEND', recipient: 'kim@daehan.co.kr', confirmedBy: '이과장',
+  })),
+  /** №30 POST /feedback-drafts/{draftId}/send — 최초 발송 */
+  send: ids => request('POST /feedback-drafts/{draftId}/send', () => ({
+    taskId: 'tsk-792', status: 'PENDING', sent: ids.length, attempt: 1,
+  })),
+  /** №30 POST /feedback-drafts/{draftId}/send — 재발송. reason 필수 (SEND_FAILED | NO_REPLY) */
+  resend: (id, reason = 'SEND_FAILED') => request('POST /feedback-drafts/{draftId}/send', () => {
+    if (!reason) throw new ApiError(400, 'RESEND_REASON_REQUIRED', '재발송에는 사유가 필요합니다')
+    return { taskId: 'tsk-793', status: 'PENDING', draftId: id, attempt: 2 }
+  }),
 }
 
-/* ── UC-12 대시보드 ─────────────────────────────────────── */
+/* ── 대시보드 (명세 №24) ────────────────────────────────── */
 export const Dashboard = {
-  /** GET /dashboard?month=2026-09 */
+  /** №24 GET /dashboard?month — 집계 응답이라 페이징하지 않는다 */
   summary: () => request('GET /dashboard', () => ({
     month: '2026-09', deadline: '2026-09-30', dDay: 27,
     judgement: { 적격: 31, 부적격: 12, 미제출: 5, total: 48 },

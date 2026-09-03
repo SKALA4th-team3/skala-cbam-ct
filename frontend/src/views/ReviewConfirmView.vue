@@ -41,7 +41,7 @@ async function confirm() {
 </script>
 
 <template>
-  <ViewHead api="UC-07 · 데이터 검토 · PUT /submissions/{id} → CONFIRMED"
+  <ViewHead api="UC-07 · 데이터 검토 · POST /submissions/{submissionId}/confirm"
             back="자료 변환" :backTo="`/submissions/${route.params.id}`">
     <template #title>{{ blockers.length ? `${blockers.length}가지가 남아 확정할 수 없습니다.` : '확정할 준비가 됐습니다.' }}</template>
     <template #lede>확정된 데이터만 대시보드 집계와 완제품 내재배출량 계산에 반영됩니다.</template>

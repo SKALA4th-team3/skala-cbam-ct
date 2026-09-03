@@ -12,7 +12,7 @@ export function createGlobe(canvas) {
   const Globe = (function(){
     const cv = canvas; const ctx = cv && cv.getContext('2d'); if (!ctx) return { flyTo(){}, setScroll(){} };
     const N = 5200, SPIN = 0.0014;
-    let W = 0, H = 0, dpr = 1, base = 340, raf = 0, t = 0, scroll = 0;
+    let W = 0, H = 0, dpr = 1, base = 340, raf = 0, t = 0;
 
     /* camera state, eased toward target every frame */
     const cam = { yaw: 0, tilt: -0.28, zoom: 1, cy: 0.5, alpha: 1, drift: 1 };
@@ -90,7 +90,7 @@ export function createGlobe(canvas) {
         if (o.alpha != null) tgt.alpha = o.alpha;
         tgt.drift = o.drift != null ? o.drift : 0;
       },
-      setScroll(v){ scroll = v; }
+      setScroll(){ /* 스크롤 값은 현재 카메라에 반영하지 않는다. 호출부(GlobeBackdrop)는 그대로 둔다 */ }
     };
   })();
   return Globe

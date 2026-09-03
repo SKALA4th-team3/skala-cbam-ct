@@ -16,7 +16,7 @@ const queue = ref([])
 
 onMounted(async () => {
   await board.load()
-  queue.value = (await Review.queue()).items
+  queue.value = (await Review.queue()).content
 })
 
 const j = computed(() => board.judged)

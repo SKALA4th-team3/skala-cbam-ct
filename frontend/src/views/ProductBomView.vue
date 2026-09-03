@@ -9,11 +9,11 @@ import { useUi } from '@/stores/ui'
 
 const route = useRoute(); const router = useRouter(); const ui = useUi()
 const p = ref(null)
-onMounted(async () => { p.value = await Products.emissions(route.params.id) })
+onMounted(async () => { p.value = await Products.get(route.params.id) })
 </script>
 
 <template>
-  <ViewHead api="UC-03 · 완제품 · POST /products (부품 세부 포함)" back="제품" backTo="/products">
+  <ViewHead api="UC-03 · 완제품 · GET /products/{productId}" back="제품" backTo="/products">
     <template #title>{{ p?.product }} 의 부품 구성</template>
     <template #lede>부품 세부는 부품명 · 협력사 · 투입량(t/t) · 상태로 이뤄집니다. 누락 여부와 상관없이 모든 협력사를 고를 수 있습니다.</template>
   </ViewHead>

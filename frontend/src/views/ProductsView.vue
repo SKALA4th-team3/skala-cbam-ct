@@ -11,7 +11,7 @@ import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
 const rows = ref([])
-onMounted(async () => { rows.value = (await Products.list({ size: 1000 })).items })
+onMounted(async () => { rows.value = (await Products.list({ size: 1000 })).content })
 const facets = [{ key: 'cn', label: 'CN 코드', field: 'cnGroup' }]
 const t = useTable(rows, { search: 'name', facets })
 </script>

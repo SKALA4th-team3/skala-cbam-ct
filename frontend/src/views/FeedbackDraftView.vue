@@ -16,7 +16,7 @@ function pick(t) { tone.value = t; load(); ui.say('문체 · ' + t) }
 </script>
 
 <template>
-  <ViewHead api="UC-10 · 피드백 초안 · POST /feedback/draft" back="검토" backTo="/review">
+  <ViewHead api="UC-10 · 피드백 초안 · POST /feedback-drafts" back="검토" backTo="/review">
     <template #title>성진스틸에 보낼 안내문을 만들었습니다.</template>
     <template #lede>판정 사유(R2 · R5)를 근거로 씁니다. 없는 값을 채우자고 요구하지 않고, 무엇이 왜 비었는지만 적습니다.</template>
   </ViewHead>

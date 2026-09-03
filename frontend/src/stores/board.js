@@ -7,7 +7,7 @@ export const useBoard = defineStore('board', {
   state: () => ({ summary: null, loading: false, recalculated: false }),
   getters: {
     judged: s => s.summary?.judgement ?? { 적격: 0, 부적격: 0, 미제출: 0, total: 0 },
-    okRate(s) { const j = this.judged; return j.total ? Math.round(j.적격 / j.total * 100) : 0 },
+    okRate() { const j = this.judged; return j.total ? Math.round(j.적격 / j.total * 100) : 0 },
   },
   actions: {
     async load() {

@@ -14,7 +14,7 @@ onMounted(async () => { s.value = await Suppliers.get(route.params.id) })
 </script>
 
 <template>
-  <ViewHead v-if="s" api="UC-01 · 협력업체 · GET /suppliers/{id}" back="협력사" backTo="/suppliers">
+  <ViewHead v-if="s" api="UC-01 · 협력업체 · GET /suppliers/{supplierId}" back="협력사" backTo="/suppliers">
     <template #title>{{ s.name }}</template>
     <template #lede>{{ s.city }} · {{ s.item }} · {{ s.country }} · {{ s.tie }} · {{ s.why }}</template>
     <template #acts>
