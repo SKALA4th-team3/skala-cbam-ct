@@ -1,4 +1,13 @@
 /* 화면별 목 데이터. seed.js(협력사·부품)와 달리 화면 하나에서만 쓰는 것들이다. */
+import { suppliers } from '@/mocks/seed'
+
+/** 담당자 이메일은 seed 가 유일한 출처다 — 요구사항 19번의 매칭 키다.
+ *  여기 따로 적어 두면 접수함의 발신 주소가 어느 협력사와도 맞지 않게 되고,
+ *  「발신 주소를 담당자 이메일과 대조해 식별」이 목에서 한 번도 성립하지 않는다.
+ *  실제 주소를 쓰지 않기 위해 seed 의 도메인은 전부 `.example` 이다. */
+const mailOf = name => suppliers.find(s => s.name === name)?.email ?? null
+/** 같은 도메인의 없는 사서함 — 발송 실패(550)를 보여주기 위한 것 */
+const deadBox = name => 'no-such-box@' + (mailOf(name) ?? '@unknown.example').split('@')[1]
 
 export const PRODUCTS = [
   { id: 'valve-a', name: '밸브 A형', cn: '8481 80', cnGroup: '8481 밸브', tons: 6200, partCount: 3, actual: 3524.4, ratio: 1.12, judgement: '적격' },
@@ -20,10 +29,10 @@ export const EMISSIONS = {
 }
 
 export const INBOX = [
-  { id: 'sub-1', at: '14:21', supplier: '성진스틸', from: 'cs.kim@sungjin.co.kr', subject: '3분기 배출량', files: 'xlsx 1 · pdf 2', state: '분석 중', tone: 'processing' },
-  { id: 'sub-2', at: '11:04', supplier: '대한화학', from: 'park@daehan-chem.kr', subject: '[회신] 3분기', files: 'pdf 1', state: '검토 대기', tone: 'expiring' },
-  { id: 'sub-3', at: '09:38', supplier: '우진포장', from: 'jy@woojin.kr', subject: '3분기 자료', files: 'xlsx 1', state: '완료', tone: 'complete' },
-  { id: 'sub-4', at: '08:12', supplier: null, from: 'unknown@nowhere.kr', subject: '자료 보냅니다', files: 'xlsx 1', state: '미확인', tone: 'missing' },
+  { id: 'sub-1', at: '14:21', supplier: '성진스틸', from: mailOf('성진스틸'), subject: '3분기 배출량', files: 'xlsx 1 · pdf 2', state: '분석 중', tone: 'processing' },
+  { id: 'sub-2', at: '11:04', supplier: '대한화학', from: mailOf('대한화학'), subject: '[회신] 3분기', files: 'pdf 1', state: '검토 대기', tone: 'expiring' },
+  { id: 'sub-3', at: '09:38', supplier: '우진포장', from: mailOf('우진포장'), subject: '3분기 자료', files: 'xlsx 1', state: '완료', tone: 'complete' },
+  { id: 'sub-4', at: '08:12', supplier: null, from: 'unknown@not-registered.example', subject: '자료 보냅니다', files: 'xlsx 1', state: '미확인', tone: 'missing' },
 ]
 
 /** UC-05 가 뱉는 표준화 결과 — 원문과 표준값을 나란히 둔다 (NFR-04: 추정 금지)
@@ -114,20 +123,20 @@ export const DEADLINES = [
 ]
 
 export const REMINDERS = [
-  { id: 1, name: '성진스틸',   email: 'cs.kim@sungjin.co.kr',  lastSent: '2026-08-28',  overdue: '5개월',  late: true,  checked: true },
-  { id: 2, name: '한빛철강',   email: 'lee@hanbit-steel.kr',   lastSent: '2026-08-28',  overdue: '5개월',  late: true,  checked: true },
-  { id: 5, name: '태양주물',   email: 'ceo@taeyang.kr',        lastSent: '보낸 적 없음', overdue: '이번 달', late: false, checked: true },
-  { id: 6, name: '포항정밀',   email: 'admin@pohangjm.kr',     lastSent: '2026-09-01',  overdue: '이번 달', late: false, checked: false },
-  { id: 7, name: '동양특수강', email: 'sales@dyss.co.kr',      lastSent: '보낸 적 없음', overdue: '2개월',  late: true,  checked: false },
+  { id: 1, name: '성진스틸',   email: mailOf('성진스틸'),  lastSent: '2026-08-28',  overdue: '5개월',  late: true,  checked: true },
+  { id: 2, name: '한빛철강',   email: mailOf('한빛철강'),   lastSent: '2026-08-28',  overdue: '5개월',  late: true,  checked: true },
+  { id: 5, name: '태양주물',   email: mailOf('태양주물'),        lastSent: '보낸 적 없음', overdue: '이번 달', late: false, checked: true },
+  { id: 6, name: '포항정밀',   email: mailOf('포항정밀'),     lastSent: '2026-09-01',  overdue: '이번 달', late: false, checked: false },
+  { id: 7, name: '동양특수강', email: mailOf('동양특수강'),      lastSent: '보낸 적 없음', overdue: '2개월',  late: true,  checked: false },
 ]
 
 export const DISPATCH = [
-  { id: 'fb-1', rule: 'R2', supplier: '성진스틸',    line: 'cs.kim@sungjin.co.kr · 3분기 자료 보완 요청', when: '확정 2026-09-02 15:10', state: '발송 대기', tone: 'expiring', note: '잠김' },
-  { id: 'fb-2', rule: 'R1', supplier: '한빛철강',    line: 'lee@hanbit-steel.kr · 3분기 자료 미제출 안내', when: '확정 2026-09-02 15:10', state: '발송 대기', tone: 'expiring', note: '잠김' },
-  { id: 'fb-6', rule: 'R5', supplier: '대양금속',    line: 'yun@daeyang.kr · 단위 확인 요청',              when: '확정 2026-09-02 15:12', state: '발송 대기', tone: 'expiring', note: '잠김' },
-  { id: 'fb-3', rule: 'R4', supplier: '화신알루미늄', line: 'kim@hwashin-al.kr · 배출 원단위 확인 요청',   when: '발송 2026-09-01 09:22', state: '발송 성공', tone: 'complete', note: '회신 있음' },
-  { id: 'fb-4', rule: 'R7', supplier: '태양주물',    line: 'no-such-box@taeyang.kr · 변동 확인 요청',     when: '550 Mailbox not found',  state: '발송 실패', tone: 'missing',  note: '재발송 1회' },
-  { id: 'fb-5', rule: 'R2', supplier: '한성금속',    line: 'choi@hansung.kr · 3분기 자료 보완 요청',      when: '발송 2026-08-28 14:05', state: '회신 없음', tone: 'anomaly',  note: '6일 경과' },
+  { id: 'fb-1', rule: 'R2', supplier: '성진스틸',    line: mailOf('성진스틸') + ' · 3분기 자료 보완 요청', when: '확정 2026-09-02 15:10', state: '발송 대기', tone: 'expiring', note: '잠김' },
+  { id: 'fb-2', rule: 'R1', supplier: '한빛철강',    line: mailOf('한빛철강') + ' · 3분기 자료 미제출 안내', when: '확정 2026-09-02 15:10', state: '발송 대기', tone: 'expiring', note: '잠김' },
+  { id: 'fb-6', rule: 'R5', supplier: '대양금속',    line: mailOf('대양금속') + ' · 단위 확인 요청',              when: '확정 2026-09-02 15:12', state: '발송 대기', tone: 'expiring', note: '잠김' },
+  { id: 'fb-3', rule: 'R4', supplier: '화신알루미늄', line: mailOf('화신알루미늄') + ' · 배출 원단위 확인 요청',   when: '발송 2026-09-01 09:22', state: '발송 성공', tone: 'complete', note: '회신 있음' },
+  { id: 'fb-4', rule: 'R7', supplier: '태양주물',    line: deadBox('태양주물') + ' · 변동 확인 요청',     when: '550 Mailbox not found',  state: '발송 실패', tone: 'missing',  note: '재발송 1회' },
+  { id: 'fb-5', rule: 'R2', supplier: '한성금속',    line: mailOf('한성금속') + ' · 3분기 자료 보완 요청',      when: '발송 2026-08-28 14:05', state: '회신 없음', tone: 'anomaly',  note: '6일 경과' },
 ]
 
 /** 명세 44 — 문체 3종. 근거 없이 문장을 만들지 않는다 */

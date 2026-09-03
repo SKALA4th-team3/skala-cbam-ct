@@ -2,6 +2,10 @@
    숫자는 전부 요구사항 명세(53행)와 목업 화면에 맞춰져 있다.
    협력사 48곳: 국가 44/3/1, 거래 상태 46/2, 판정 31/12/5, 업종 32/11/5 */
 
+/* 협력사 48곳.
+   담당자 이메일은 요구사항 19번의 매칭 키다 — 비어 있으면 18→19번 흐름을 이을 수 없어 전부 채웠다.
+   도메인을 `.example` 로 둔 것은 실제 주소가 아님을 눈으로 보이게 하려는 것이다 (CLAUDE.md 개인정보 규칙).
+   사업자 등록번호도 명세 1번의 중복 불가 대상이라 48곳 모두 서로 다른 값을 갖는다. */
 export const suppliers = [
   {
     "name": "성진스틸",
@@ -14,7 +18,10 @@ export const suppliers = [
     "id": 1,
     "judgement": "미제출",
     "category": "철강",
-    "email": null
+    "email": "kim.minsu@seongjin.example",
+    "bizNo": "100-11-10000",
+    "contact": "김민수",
+    "phone": "054-200-1000"
   },
   {
     "name": "한빛철강",
@@ -27,7 +34,10 @@ export const suppliers = [
     "id": 2,
     "judgement": "미제출",
     "category": "철강",
-    "email": null
+    "email": "lee.haneul@hanbit.example",
+    "bizNo": "107-12-11237",
+    "contact": "이하늘",
+    "phone": "055-213-1271"
   },
   {
     "name": "한성금속",
@@ -40,7 +50,10 @@ export const suppliers = [
     "id": 3,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "park.geonu@hanseong.example",
+    "bizNo": "114-13-12474",
+    "contact": "박건우",
+    "phone": "051-226-1542"
   },
   {
     "name": "화신알루미늄",
@@ -53,7 +66,10 @@ export const suppliers = [
     "id": 4,
     "judgement": "부적격",
     "category": "알루미늄",
-    "email": null
+    "email": "choi.jihun@hwasin.example",
+    "bizNo": "121-14-13711",
+    "contact": "최지훈",
+    "phone": "070-239-1813"
   },
   {
     "name": "태양주물",
@@ -66,7 +82,10 @@ export const suppliers = [
     "id": 5,
     "judgement": "미제출",
     "category": "철강",
-    "email": null
+    "email": "jung.jaewon@taeyangjumul.example",
+    "bizNo": "128-15-14948",
+    "contact": "정재원",
+    "phone": "070-252-2084"
   },
   {
     "name": "포항정밀",
@@ -79,7 +98,10 @@ export const suppliers = [
     "id": 6,
     "judgement": "미제출",
     "category": "철강",
-    "email": null
+    "email": "kang.mirae@pohang.example",
+    "bizNo": "135-16-16185",
+    "contact": "강미래",
+    "phone": "054-265-2355"
   },
   {
     "name": "동양특수강",
@@ -92,7 +114,10 @@ export const suppliers = [
     "id": 7,
     "judgement": "미제출",
     "category": "철강",
-    "email": null
+    "email": "cho.seoyeon@dongyang.example",
+    "bizNo": "142-17-17422",
+    "contact": "조서연",
+    "phone": "041-278-2626"
   },
   {
     "name": "대양금속",
@@ -105,7 +130,10 @@ export const suppliers = [
     "id": 8,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "yoon.yujin@daeyang.example",
+    "bizNo": "149-18-18659",
+    "contact": "윤유진",
+    "phone": "032-291-2897"
   },
   {
     "name": "삼정스틸",
@@ -118,7 +146,10 @@ export const suppliers = [
     "id": 9,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "jang.junyeong@samjeong.example",
+    "bizNo": "156-19-19896",
+    "contact": "장준영",
+    "phone": "061-304-3168"
   },
   {
     "name": "유진알미늄",
@@ -131,7 +162,10 @@ export const suppliers = [
     "id": 10,
     "judgement": "부적격",
     "category": "알루미늄",
-    "email": null
+    "email": "lim.hyeonu@yujinalminyum.example",
+    "bizNo": "163-20-21133",
+    "contact": "임현우",
+    "phone": "070-317-3439"
   },
   {
     "name": "신성정공",
@@ -144,7 +178,10 @@ export const suppliers = [
     "id": 11,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "han.seongho@sinseongjeonggong.example",
+    "bizNo": "170-21-22370",
+    "contact": "한성호",
+    "phone": "053-330-3710"
   },
   {
     "name": "우성강업",
@@ -157,7 +194,10 @@ export const suppliers = [
     "id": 12,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "oh.chaewon@useonggangeop.example",
+    "bizNo": "177-22-23607",
+    "contact": "오채원",
+    "phone": "054-343-3981"
   },
   {
     "name": "명진메탈",
@@ -170,7 +210,10 @@ export const suppliers = [
     "id": 13,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "seo.yerin@myeongjin.example",
+    "bizNo": "184-23-24844",
+    "contact": "서예린",
+    "phone": "063-356-4252"
   },
   {
     "name": "세아정밀",
@@ -183,7 +226,10 @@ export const suppliers = [
     "id": 14,
     "judgement": "부적격",
     "category": "기타",
-    "email": null
+    "email": "shin.daeun@sea.example",
+    "bizNo": "191-24-26081",
+    "contact": "신다은",
+    "phone": "055-369-4523"
   },
   {
     "name": "Tan Phat Metal",
@@ -196,7 +242,10 @@ export const suppliers = [
     "id": 15,
     "judgement": "부적격",
     "category": "철강",
-    "email": null
+    "email": "kwon.sangu@tanphatmetal.example",
+    "bizNo": "198-25-27318",
+    "contact": "권상우",
+    "phone": "070-382-4794"
   },
   {
     "name": "케이알알루미늄",
@@ -209,7 +258,10 @@ export const suppliers = [
     "id": 16,
     "judgement": "부적격",
     "category": "알루미늄",
-    "email": null
+    "email": "hwang.doyun@keial.example",
+    "bizNo": "205-26-28555",
+    "contact": "황도윤",
+    "phone": "070-395-5065"
   },
   {
     "name": "진성열처리",
@@ -222,7 +274,10 @@ export const suppliers = [
     "id": 17,
     "judgement": "부적격",
     "category": "기타",
-    "email": null
+    "email": "ahn.taehyeon@jinseongyeolcheori.example",
+    "bizNo": "212-27-29792",
+    "contact": "안태현",
+    "phone": "070-408-5336"
   },
   {
     "name": "서진메탈",
@@ -235,7 +290,10 @@ export const suppliers = [
     "id": 18,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "song.hyejeong@seojin.example",
+    "bizNo": "219-28-31029",
+    "contact": "송혜정",
+    "phone": "070-421-5607"
   },
   {
     "name": "대아공업",
@@ -248,7 +306,10 @@ export const suppliers = [
     "id": 19,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "ryu.subin@daea.example",
+    "bizNo": "226-29-32266",
+    "contact": "류수빈",
+    "phone": "052-434-5878"
   },
   {
     "name": "우진포장",
@@ -261,7 +322,10 @@ export const suppliers = [
     "id": 20,
     "judgement": "적격",
     "category": "기타",
-    "email": null
+    "email": "jeon.soyeong@ujinpojang.example",
+    "bizNo": "233-30-33503",
+    "contact": "전소영",
+    "phone": "053-447-6149"
   },
   {
     "name": "대한화학",
@@ -274,7 +338,10 @@ export const suppliers = [
     "id": 21,
     "judgement": "적격",
     "category": "기타",
-    "email": null
+    "email": "kim.minsu@daehan.example",
+    "bizNo": "240-31-34740",
+    "contact": "김민수",
+    "phone": "061-460-6420"
   },
   {
     "name": "신광가스",
@@ -287,7 +354,10 @@ export const suppliers = [
     "id": 22,
     "judgement": "적격",
     "category": "기타",
-    "email": null
+    "email": "lee.haneul@singwanggaseu.example",
+    "bizNo": "247-32-35977",
+    "contact": "이하늘",
+    "phone": "052-473-6691"
   },
   {
     "name": "동국제선",
@@ -300,7 +370,10 @@ export const suppliers = [
     "id": 23,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "park.geonu@donggukjeseon.example",
+    "bizNo": "254-33-37214",
+    "contact": "박건우",
+    "phone": "032-486-6962"
   },
   {
     "name": "한주철강",
@@ -313,7 +386,10 @@ export const suppliers = [
     "id": 24,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "choi.jihun@hanju.example",
+    "bizNo": "261-34-38451",
+    "contact": "최지훈",
+    "phone": "054-499-7233"
   },
   {
     "name": "부산제강",
@@ -326,7 +402,10 @@ export const suppliers = [
     "id": 25,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "jung.jaewon@busan.example",
+    "bizNo": "268-35-39688",
+    "contact": "정재원",
+    "phone": "051-512-7504"
   },
   {
     "name": "광양특수강",
@@ -339,7 +418,10 @@ export const suppliers = [
     "id": 26,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "kang.mirae@gwangyang.example",
+    "bizNo": "275-36-40925",
+    "contact": "강미래",
+    "phone": "061-525-7775"
   },
   {
     "name": "남선강업",
@@ -352,7 +434,10 @@ export const suppliers = [
     "id": 27,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "cho.seoyeon@namseongangeop.example",
+    "bizNo": "282-37-42162",
+    "contact": "조서연",
+    "phone": "070-538-8046"
   },
   {
     "name": "백산철강",
@@ -365,7 +450,10 @@ export const suppliers = [
     "id": 28,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "yoon.yujin@baeksan.example",
+    "bizNo": "289-38-43399",
+    "contact": "윤유진",
+    "phone": "041-551-8317"
   },
   {
     "name": "대륙스틸",
@@ -378,7 +466,10 @@ export const suppliers = [
     "id": 29,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "jang.junyeong@daeryuk.example",
+    "bizNo": "296-39-44636",
+    "contact": "장준영",
+    "phone": "070-564-8588"
   },
   {
     "name": "청우금속",
@@ -391,7 +482,10 @@ export const suppliers = [
     "id": 30,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "lim.hyeonu@cheongu.example",
+    "bizNo": "303-40-45873",
+    "contact": "임현우",
+    "phone": "070-577-8859"
   },
   {
     "name": "정일스틸",
@@ -404,7 +498,10 @@ export const suppliers = [
     "id": 31,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "han.seongho@jeongil.example",
+    "bizNo": "310-41-47110",
+    "contact": "한성호",
+    "phone": "063-590-9130"
   },
   {
     "name": "태창강판",
@@ -417,7 +514,10 @@ export const suppliers = [
     "id": 32,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "oh.chaewon@taechanggangpan.example",
+    "bizNo": "317-42-48347",
+    "contact": "오채원",
+    "phone": "055-603-9401"
   },
   {
     "name": "하나철강",
@@ -430,7 +530,10 @@ export const suppliers = [
     "id": 33,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "seo.yerin@hana.example",
+    "bizNo": "324-43-49584",
+    "contact": "서예린",
+    "phone": "054-616-9672"
   },
   {
     "name": "금호강재",
@@ -443,7 +546,10 @@ export const suppliers = [
     "id": 34,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "shin.daeun@geumhogangjae.example",
+    "bizNo": "331-44-50821",
+    "contact": "신다은",
+    "phone": "070-629-9943"
   },
   {
     "name": "삼화스틸",
@@ -456,7 +562,10 @@ export const suppliers = [
     "id": 35,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "kwon.sangu@samhwa.example",
+    "bizNo": "338-45-52058",
+    "contact": "권상우",
+    "phone": "032-642-1214"
   },
   {
     "name": "중앙철강",
@@ -469,7 +578,10 @@ export const suppliers = [
     "id": 36,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "hwang.doyun@jungang.example",
+    "bizNo": "345-46-53295",
+    "contact": "황도윤",
+    "phone": "070-655-1485"
   },
   {
     "name": "신한강업",
@@ -482,7 +594,10 @@ export const suppliers = [
     "id": 37,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "ahn.taehyeon@sinhangangeop.example",
+    "bizNo": "352-47-54532",
+    "contact": "안태현",
+    "phone": "070-668-1756"
   },
   {
     "name": "영진철강",
@@ -495,7 +610,10 @@ export const suppliers = [
     "id": 38,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "song.hyejeong@yeongjin.example",
+    "bizNo": "359-48-55769",
+    "contact": "송혜정",
+    "phone": "041-681-2027"
   },
   {
     "name": "Dong Nai Steel",
@@ -508,7 +626,10 @@ export const suppliers = [
     "id": 39,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "ryu.subin@dongnaisteel.example",
+    "bizNo": "366-49-57006",
+    "contact": "류수빈",
+    "phone": "070-694-2298"
   },
   {
     "name": "PT Cilegon Metal",
@@ -521,7 +642,10 @@ export const suppliers = [
     "id": 40,
     "judgement": "적격",
     "category": "철강",
-    "email": null
+    "email": "jeon.soyeong@ptcilegonmetal.example",
+    "bizNo": "373-50-58243",
+    "contact": "전소영",
+    "phone": "070-707-2569"
   },
   {
     "name": "한국경금속",
@@ -534,7 +658,10 @@ export const suppliers = [
     "id": 41,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "kim.minsu@hangukgyeong.example",
+    "bizNo": "380-51-59480",
+    "contact": "김민수",
+    "phone": "052-720-2840"
   },
   {
     "name": "대성알루미늄",
@@ -547,7 +674,10 @@ export const suppliers = [
     "id": 42,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "lee.haneul@daeseong.example",
+    "bizNo": "387-52-60717",
+    "contact": "이하늘",
+    "phone": "070-733-3111"
   },
   {
     "name": "광명알미늄",
@@ -560,7 +690,10 @@ export const suppliers = [
     "id": 43,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "park.geonu@gwangmyeongalminyum.example",
+    "bizNo": "394-53-61954",
+    "contact": "박건우",
+    "phone": "070-746-3382"
   },
   {
     "name": "태원경금속",
@@ -573,7 +706,10 @@ export const suppliers = [
     "id": 44,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "choi.jihun@taewongyeong.example",
+    "bizNo": "401-54-63191",
+    "contact": "최지훈",
+    "phone": "055-759-3653"
   },
   {
     "name": "부산알루미늄",
@@ -586,7 +722,10 @@ export const suppliers = [
     "id": 45,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "jung.jaewon45@busan.example",
+    "bizNo": "408-55-64428",
+    "contact": "정재원",
+    "phone": "051-772-3924"
   },
   {
     "name": "신동알루텍",
@@ -599,7 +738,10 @@ export const suppliers = [
     "id": 46,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "kang.mirae@sindongalrutek.example",
+    "bizNo": "415-56-65665",
+    "contact": "강미래",
+    "phone": "053-785-4195"
   },
   {
     "name": "삼호경금속",
@@ -612,7 +754,10 @@ export const suppliers = [
     "id": 47,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
+    "email": "cho.seoyeon@samhogyeong.example",
+    "bizNo": "422-57-66902",
+    "contact": "조서연",
+    "phone": "070-798-4466"
   },
   {
     "name": "Vung Tau Alloy",
@@ -625,14 +770,19 @@ export const suppliers = [
     "id": 48,
     "judgement": "적격",
     "category": "알루미늄",
-    "email": null
-  }
+    "email": "yoon.yujin@vungtaualloy.example",
+    "bizNo": "429-58-68139",
+    "contact": "윤유진",
+    "phone": "070-811-4737"
+  },
 ]
 
+/* 부품 24개. CN 코드는 요구사항 7번대로 8자리다 —
+   원본이 HS6(`7207 11`)였어서 CN8 세분류 두 자리를 `00` 으로 채웠다. */
 export const parts = [
   {
     "name": "슬래브",
-    "cn": "7207 11",
+    "cn": "7207 1100",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "1.92 tCO₂e/t",
@@ -640,7 +790,7 @@ export const parts = [
   },
   {
     "name": "빌릿",
-    "cn": "7207 19",
+    "cn": "7207 1900",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "1.41 tCO₂e/t",
@@ -648,7 +798,7 @@ export const parts = [
   },
   {
     "name": "열간압연 전력",
-    "cn": "2716 00",
+    "cn": "2716 0000",
     "cnGroup": "27 광물성 연료",
     "supplier": "자사 (포항)",
     "factor": "0.42 tCO₂e/MWh",
@@ -656,7 +806,7 @@ export const parts = [
   },
   {
     "name": "아연도금 증기",
-    "cn": "2711 21",
+    "cn": "2711 2100",
     "cnGroup": "27 광물성 연료",
     "supplier": "한빛철강",
     "factor": null,
@@ -664,7 +814,7 @@ export const parts = [
   },
   {
     "name": "산세 처리제",
-    "cn": "2806 10",
+    "cn": "2806 1000",
     "cnGroup": "28 무기화학품",
     "supplier": "대한화학",
     "factor": "0.18 tCO₂e/t",
@@ -672,7 +822,7 @@ export const parts = [
   },
   {
     "name": "포장재",
-    "cn": "4819 10",
+    "cn": "4819 1000",
     "cnGroup": "48 지류",
     "supplier": "우진포장",
     "factor": "0.09 tCO₂e/t",
@@ -680,7 +830,7 @@ export const parts = [
   },
   {
     "name": "열연코일",
-    "cn": "7208 39",
+    "cn": "7208 3900",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "2.08 tCO₂e/t",
@@ -688,7 +838,7 @@ export const parts = [
   },
   {
     "name": "후판",
-    "cn": "7208 51",
+    "cn": "7208 5100",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "2.15 tCO₂e/t",
@@ -696,7 +846,7 @@ export const parts = [
   },
   {
     "name": "선재",
-    "cn": "7213 91",
+    "cn": "7213 9100",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "1.87 tCO₂e/t",
@@ -704,7 +854,7 @@ export const parts = [
   },
   {
     "name": "봉강",
-    "cn": "7214 20",
+    "cn": "7214 2000",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "1.76 tCO₂e/t",
@@ -712,7 +862,7 @@ export const parts = [
   },
   {
     "name": "형강",
-    "cn": "7216 33",
+    "cn": "7216 3300",
     "cnGroup": "72 철강",
     "supplier": "성진스틸",
     "factor": "1.98 tCO₂e/t",
@@ -720,7 +870,7 @@ export const parts = [
   },
   {
     "name": "냉연강판",
-    "cn": "7209 17",
+    "cn": "7209 1700",
     "cnGroup": "72 철강",
     "supplier": "한빛철강",
     "factor": "2.31 tCO₂e/t",
@@ -728,7 +878,7 @@ export const parts = [
   },
   {
     "name": "아연도금강판",
-    "cn": "7210 49",
+    "cn": "7210 4900",
     "cnGroup": "72 철강",
     "supplier": "한빛철강",
     "factor": "2.44 tCO₂e/t",
@@ -736,7 +886,7 @@ export const parts = [
   },
   {
     "name": "강관",
-    "cn": "7306 30",
+    "cn": "7306 3000",
     "cnGroup": "72 철강",
     "supplier": "한빛철강",
     "factor": "2.02 tCO₂e/t",
@@ -744,7 +894,7 @@ export const parts = [
   },
   {
     "name": "앵글",
-    "cn": "7216 21",
+    "cn": "7216 2100",
     "cnGroup": "72 철강",
     "supplier": "한빛철강",
     "factor": "1.93 tCO₂e/t",
@@ -752,7 +902,7 @@ export const parts = [
   },
   {
     "name": "황산",
-    "cn": "2807 00",
+    "cn": "2807 0000",
     "cnGroup": "28 무기화학품",
     "supplier": "대한화학",
     "factor": "0.12 tCO₂e/t",
@@ -760,7 +910,7 @@ export const parts = [
   },
   {
     "name": "암모니아",
-    "cn": "2814 10",
+    "cn": "2814 1000",
     "cnGroup": "28 무기화학품",
     "supplier": "대한화학",
     "factor": "0.44 tCO₂e/t",
@@ -768,7 +918,7 @@ export const parts = [
   },
   {
     "name": "가성소다",
-    "cn": "2815 11",
+    "cn": "2815 1100",
     "cnGroup": "28 무기화학품",
     "supplier": "대한화학",
     "factor": "0.31 tCO₂e/t",
@@ -776,7 +926,7 @@ export const parts = [
   },
   {
     "name": "라벨지",
-    "cn": "4821 10",
+    "cn": "4821 1000",
     "cnGroup": "48 지류",
     "supplier": "우진포장",
     "factor": "0.04 tCO₂e/t",
@@ -784,7 +934,7 @@ export const parts = [
   },
   {
     "name": "가열로 천연가스",
-    "cn": "2711 21",
+    "cn": "2711 2100",
     "cnGroup": "27 광물성 연료",
     "supplier": "자사 (포항)",
     "factor": "0.056 tCO₂e/GJ",
@@ -792,7 +942,7 @@ export const parts = [
   },
   {
     "name": "코크스",
-    "cn": "2704 00",
+    "cn": "2704 0000",
     "cnGroup": "27 광물성 연료",
     "supplier": "자사 (포항)",
     "factor": "3.10 tCO₂e/t",
@@ -800,7 +950,7 @@ export const parts = [
   },
   {
     "name": "압연 스팀",
-    "cn": "2711 11",
+    "cn": "2711 1100",
     "cnGroup": "27 광물성 연료",
     "supplier": "자사 (포항)",
     "factor": "0.21 tCO₂e/t",
@@ -808,7 +958,7 @@ export const parts = [
   },
   {
     "name": "소성로 경유",
-    "cn": "2710 19",
+    "cn": "2710 1900",
     "cnGroup": "27 광물성 연료",
     "supplier": "자사 (포항)",
     "factor": "3.17 tCO₂e/t",
@@ -816,10 +966,10 @@ export const parts = [
   },
   {
     "name": "산소플랜트 전력",
-    "cn": "2716 00",
+    "cn": "2716 0000",
     "cnGroup": "27 광물성 연료",
     "supplier": "자사 (포항)",
     "factor": "0.42 tCO₂e/MWh",
     "unit": "tCO2e/t"
-  }
+  },
 ]
