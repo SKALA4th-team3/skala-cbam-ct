@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Products, allRows } from '@/api'
 import { useTable } from '@/composables/useTable'
+import { useFlip } from '@/composables/useFlip'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -14,6 +15,8 @@ const rows = ref([])
 onMounted(async () => { rows.value = allRows(await Products.list({ size: 1000 }), 'GET /products') })
 const facets = [{ key: 'cn', label: 'CN 코드', field: 'cnGroup' }]
 const t = useTable(rows, { search: 'name', facets })
+const list = ref(null)
+useFlip(list, () => t.filtered)
 </script>
 
 <template>
@@ -29,8 +32,8 @@ const t = useTable(rows, { search: 'name', facets })
 
   <DataToolbar :table="t" :facets="facets" placeholder="제품명 검색" unit="종" />
 
-  <div class="list stage" style="--d:180ms">
-    <div v-for="p in t.filtered" :key="p.id" v-clickable class="row pr link"
+  <div class="list" ref="list" v-reveal>
+    <div v-for="p in t.filtered" :key="p.id" :data-flip="p.id" v-clickable class="row pr link"
          :aria-label="`${p.name} 신고 가능 여부`" @click="router.push(`/products/${p.id}/report`)">
       <div class="n"><b>{{ p.name }}</b><span>CN {{ p.cn }} · {{ p.tons.toLocaleString() }} t · 부품 {{ p.partCount }}</span></div>
       <MeanBullet :ratio="p.ratio" />
@@ -44,7 +47,7 @@ const t = useTable(rows, { search: 'name', facets })
   <div class="after">
     <a href="#" @click.prevent="router.push('/products/hr-2400/report')">신고 리포트 미리보기</a>
     <!-- 이 화면의 지표는 MeanBullet 이다. 앞 화면의 12개월 스트립 legend 를 복사해 색이 뜻과 어긋나 있었다 -->
-    <span class="legend mb">평균값 대비 실측값 · 회색 띠가 허용 범위 ± 30%</span>
+    <span class="legend mb">평균값 대비 실측값 · 빗금 구간이 허용 범위 ± 30%, 흰 선이 평균값</span>
   </div>
   <div class="spacer"></div>
 </template>

@@ -38,7 +38,8 @@ async function pick(t) {
   </div>
 
   <div class="letter stage" style="--d:160ms">
-    <p v-for="(para, i) in body" :key="i" :class="{ list: para.startsWith('-') || para.startsWith('·') }">{{ para }}</p>
+    <p v-for="(para, i) in body" :key="i"
+       :class="{ list: para.startsWith('-') || para.startsWith('·'), shim: loading }">{{ para }}</p>
   </div>
 
   <ActionBar title="확정하면 수신자 · 제목 · 본문이 잠깁니다."

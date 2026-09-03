@@ -38,7 +38,7 @@ onMounted(async () => { s.value = await Suppliers.get(route.params.id) })
   </div>
 
   <div v-if="s" class="subhead stage" style="--d:160ms"><h3>최근 12개월 제출 이력</h3><p>붉은 칸은 미제출, 파란 칸은 부적격입니다.</p></div>
-  <div v-if="s" class="stage" style="--d:180ms;padding:8px 16px 20px"><SubmissionStrip :pattern="s.strip" /></div>
+  <div v-if="s" class="stage" style="--d:180ms;padding:8px 16px 20px"><SubmissionStrip :pattern="s.strip" axis /></div>
 
   <div v-if="s" class="subhead stage" style="--d:200ms"><h3>공급 부품</h3><p>벤치마크 팩터가 비면 완제품 신고가 막힙니다.</p></div>
   <div v-if="s" class="parts stage" style="--d:220ms">

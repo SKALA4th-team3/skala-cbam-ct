@@ -2,6 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { Parts, allRows } from '@/api'
 import { useTable } from '@/composables/useTable'
+import { useFlip } from '@/composables/useFlip'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
 import ActionBar from '@/components/ActionBar.vue'
@@ -18,6 +19,8 @@ const facets = [
   { key: 'cn', label: 'CN 코드', field: 'cnGroup' },
 ]
 const t = useTable(rows, { search: 'name', facets })
+const list = ref(null)
+useFlip(list, () => t.filtered)
 const gaps = computed(() => rows.value.filter(p => !p.factor).length)
 </script>
 
@@ -36,10 +39,10 @@ const gaps = computed(() => rows.value.filter(p => !p.factor).length)
 
   <DataToolbar :table="t" :facets="facets" placeholder="부품명 검색" unit="개" />
 
-  <div class="parts stage" style="--d:180ms">
+  <div class="parts" ref="list" v-reveal>
     <div class="h"><span>부품명</span><span>CN 코드</span><span>공급 협력업체</span><span>벤치마크 팩터 · 단위</span></div>
     <!-- 공급 협력사 상세로 간다. `자사 (포항)` 처럼 협력업체가 아닌 공급처는 갈 곳이 없어 링크가 아니다 -->
-    <div v-for="p in t.filtered" :key="p.name" class="pt" :class="{ gap: !p.factor, link: p.supplierId }"
+    <div v-for="p in t.filtered" :key="p.name" :data-flip="p.name" class="pt" :class="{ gap: !p.factor, link: p.supplierId }"
          v-clickable :aria-label="`${p.name} 의 공급 협력사`"
          @click="p.supplierId ? router.push(`/suppliers/${p.supplierId}`) : ui.say(`${p.supplier} 은 등록된 협력업체가 아닙니다 — 상세 화면이 없습니다`)">
       <b>{{ p.name }}</b>

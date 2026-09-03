@@ -54,7 +54,7 @@ const canPass = computed(() => state.value === 'done')
   <div class="steps stage" style="--d:140ms">
     <div v-for="(s, i) in sub?.steps ?? []" :key="s" class="st"
          :class="{ done: i < step, now: i === step && state === 'run' }">
-      <i></i><div class="l"><b>{{ s }}</b><em v-if="i === step && state === 'run'">진행 중</em></div>
+      <i></i><div class="l"><b>{{ s }}</b><em v-if="i === step && state === 'run'" class="shim">읽는 중</em></div>
     </div>
   </div>
 

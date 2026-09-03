@@ -1,8 +1,10 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Suppliers, allRows } from '@/api'
 import { useTable } from '@/composables/useTable'
+import { useFlip } from '@/composables/useFlip'
+import { isAlarming } from '@/composables/motion'
 import DataToolbar from '@/components/DataToolbar.vue'
 import ViewHead from '@/components/ViewHead.vue'
 import SubmissionStrip from '@/components/SubmissionStrip.vue'
@@ -28,6 +30,12 @@ const sorts = [
   { key: 'judgement', label: '판정 결과순', fn: (a, b) => RANK[a.judgement] - RANK[b.judgement] },
 ]
 const t = useTable(rows, { search: 'name', facets, sorts })
+
+/* 필터를 켜면 남는 행이 제자리를 찾아간다 — 무엇이 걸러졌는지 보이게 (GSAP Flip 과 같은 원리) */
+const list = ref(null)
+useFlip(list, () => t.filtered)
+/* 맥동을 붙일 곳. 한 화면에 최대 두 곳만 — 전부 움직이면 아무것도 안 보인다 */
+const beating = computed(() => t.filtered.filter(isAlarming).slice(0, 2).map(s => s.id))
 </script>
 
 <template>
@@ -43,12 +51,15 @@ const t = useTable(rows, { search: 'name', facets, sorts })
 
   <DataToolbar :table="t" :facets="facets" :sorts="sorts" placeholder="협력업체명 검색" unit="곳" />
 
-  <div class="list stage" style="--d:180ms">
-    <div v-for="s in t.filtered" :key="s.id" v-clickable class="row link"
+  <div class="list" ref="list" v-reveal>
+    <div v-for="s in t.filtered" :key="s.id" :data-flip="s.id" v-clickable class="row link"
          :aria-label="`${s.name} 상세`" @click="router.push(`/suppliers/${s.id}`)">
       <!-- 도시·품목은 명세 №3 응답에 없다. 실서버에서는 비어 오므로 「 · 」만 남지 않게 거른다 -->
-      <div class="n"><b>{{ s.name }}</b><span>{{ [s.city, s.item].filter(Boolean).join(' · ') }}</span></div>
-      <SubmissionStrip :pattern="s.strip" />
+      <!-- 맥동은 3개월 이상 연속 미제출인 곳에만, 한 화면 최대 두 곳 (composables/motion.js) -->
+      <div class="n" :class="{ beat: beating.includes(s.id) }">
+        <b>{{ s.name }}</b><span>{{ [s.city, s.item].filter(Boolean).join(' · ') }}</span>
+      </div>
+      <SubmissionStrip :pattern="s.strip" axis />
       <StatusBadge :value="s.judgement" />
     </div>
     <EmptyState v-if="!t.filtered.length"
