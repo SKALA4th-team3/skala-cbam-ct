@@ -29,6 +29,8 @@
 
 ⚠️ **두 사람이 같은 번호를 집어도 git은 막아 주지 않는다.** 제목이 다르면 파일명도 달라서 **충돌 없이 둘 다 merge되고**, 나중에 `ADR-0003`이 두 개가 된다. 그래서 번호는 눈으로 확인해야 한다.
 
+**실제로 두 번 일어났다.** `ADR-0003`이 둘([브랜치 이름](0003-branch-name-jira-key.md)·[DB 프로필](0004-database-profiles.md))이 됐고, 뒤에 `ADR-0004`(상태값 경계)를 딴 쪽과도 부딪혔다. 지금은 정리했다 — DB 프로필이 0004, 상태값 경계가 0005다. **아래 표가 유일한 기준이다.** 새 번호를 딸 때 이 표의 마지막 줄 다음 번호를 쓴다.
+
 ## 파일명
 
 ```
@@ -46,6 +48,8 @@ docs/decisions/0001-ai-response-schema.md
 | [ADR-0005](0005-status-enum-boundary.md) | 상태값은 서버가 영문 enum · 화면이 한글 — 변환은 FE 경계 한 곳 |
 | [ADR-0006](0006-no-auth-internal-network.md) | 인증·인가를 넣지 않는다 — 사내망을 신뢰 경계로 둔다 |
 | [ADR-0007](0007-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |
+| [ADR-0008](0008-feedback-history-list-endpoint.md) | 발송 이력 전체 조회 경로를 명세에 더한다 (51번·53번) |
+| [ADR-0009](0009-no-paging-on-list-screens.md) | 목록 화면은 페이징하지 않는다 — 전량을 받아 브라우저에서 거른다 |
 
 
 ## 앞으로 예상되는 것
@@ -53,7 +57,7 @@ docs/decisions/0001-ai-response-schema.md
 - AI 응답 JSON 규격 (**비운 값과 사유를 어떻게 표현할 것인가** — 24번의 핵심)
 - 메일 수신 방식과 폴링 주기 (18번)
 - 규칙 R1~R7이 걸렸을 때 `부적격`인지 `미제출`인지 (**현재 매핑 없음** — 가장 급하다)
-- 발송 이력 전체 조회 경로를 명세에 추가할지 (이슈 [#13](../../../../issues/13) — **답을 기다리는 중**)
 - 협력업체 단위 심각도의 정의 — 36번이 붙은 뒤 ([ADR-0007](0007-supplier-list-default-sort.md) 이 열어 둔 것)
+- `/api/v1/internal/**` 의 `X-Internal-Token` 을 누가 관리하는지 ([ADR-0006](0006-no-auth-internal-network.md) 이 비워 둔 것)
 
 그 밖에는 PR 본문으로 충분하다.
