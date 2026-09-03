@@ -121,6 +121,20 @@ await blocked('targets 는 supplierId 를 갖는 객체 배열이다', () => Dea
 const rm = await Deadlines.remind([{ supplierId: 1, partId: null }])
 ok(rm.targetCount === 1 && rm.reportingMonth === '2026-09', '대상 수와 마감월을 그대로 돌려준다')
 
+/* ── ADR-0008 · 발송 이력 전체 조회 ─────────────────────── */
+H('발송 이력 (요구사항 51·53번 · ADR-0008)')
+const hist = (await Feedback.list()).content
+ok(hist.length > 1 && new Set(hist.map(r => r.supplier)).size > 1,
+  '전체 조회는 협력업체를 고르지 않아도 전사 목록을 준다', `${hist.length}건 · ${new Set(hist.map(r => r.supplier)).size}곳`)
+const failedOnly = (await Feedback.list({ status: '발송 실패' })).content
+ok(failedOnly.length > 0 && failedOnly.every(r => r.state === '발송 실패'),
+  '51번 — status 로 발송 실패만 걸러 온다 (48곳을 하나씩 부르지 않는다)', `${failedOnly.length}건`)
+const first = all.find(s => hist.some(r => r.supplier === s.name))
+const one = (await Feedback.list({ supplierId: first.id })).content
+ok(one.length > 0 && one.every(r => r.supplier === first.name),
+  'supplierId 를 주면 №31 처럼 그 업체 것만 준다 (협력업체 상세가 그렇게 부른다)',
+  `${first.name} · ${one.length}건`)
+
 /* ── 요구사항 30번 · 재발송 사유 ────────────────────────── */
 H('피드백 재발송 (요구사항 30번)')
 await blocked('사유 없는 재발송은 막는다', () => Feedback.resend('fb-4', ''), 'RESEND_REASON_REQUIRED')

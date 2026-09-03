@@ -20,12 +20,13 @@ const MAIL = clone(INBOX)
 const DISP = clone(DISPATCH)
 
 /** 목록 화면은 전량을 받아 브라우저에서 필터한다 — 패싯 배지 숫자가 전체 기준이어야 해서다(useTable).
- *  서버가 페이지를 자르면 화면은 그 사실을 모른 채 일부만 보게 되므로, 잘렸으면 개발 콘솔에 남긴다.
- *  BE 가 붙어 이 경고가 뜨면 필터·정렬을 서버로 옮겨야 한다는 신호다 — 이슈 #20. */
+ *  ADR-0009 로 「이 목록은 페이징하지 않는다」를 정했다. 서버는 전량을 돌려준다.
+ *  그래도 잘렸으면 개발 콘솔에 남긴다 — 조용히 틀리는 것만은 막는다.
+ *  이 경고가 뜨면 그때가 필터·정렬을 서버로 옮길 때다 (ADR-0009 「다시 볼 조건」). */
 export function allRows(res, where) {
   if (import.meta.env?.DEV && res.totalElements > res.content.length)
     console.warn(`[API] ${where}: ${res.totalElements}건 중 ${res.content.length}건만 받았다.`
-      + ' 화면이 브라우저에서 필터하므로 배지 숫자와 목록이 전체를 반영하지 않는다 (이슈 #20)')
+      + ' 화면이 브라우저에서 필터하므로 배지 숫자와 목록이 전체를 반영하지 않는다 (ADR-0009)')
   return res.content
 }
 
@@ -208,10 +209,23 @@ export const Feedback = {
   draft: (submissionId, tone = '격식') => request('POST /feedback-drafts', () => ({
     submissionId, style: tone, body: TONES[tone], version: 1, source: 'AI', status: 'DRAFT',
   })),
-  /** №31 GET /suppliers/{supplierId}/feedback-histories?type&status&from&to
-      ⚠️ 명세는 협력업체별 조회만 정의한다. 지금 화면은 전체 발송 목록을 보여준다.
-         전체 조회 경로를 추가할지 화면을 협력업체 상세로 옮길지 아직 답이 없다 — 이슈 #13. */
-  list: () => request('GET /suppliers/{supplierId}/feedback-histories', () => page(DISP, { size: 100 })),
+  /** GET /feedback-histories?supplierId&type&status&from&to&page&size&sort
+      ⚠️ **설계 파생 1건** — 명세 v10 №31 은 `GET /suppliers/{supplierId}/feedback-histories`,
+         즉 협력업체별 조회만 정의한다. 51번(발송 실패 건 확인)·53번(발송 이력 조회)은 전사 목록을 요구하는데
+         그 경로로는 협력업체 48곳을 하나씩 불러야 한다. 전체 조회를 더하기로 정했다 — ADR-0008.
+         `supplierId` 를 주면 №31 과 같은 것을 돌려준다. 협력업체 상세는 그렇게 부른다.
+         **BE 가 이 경로를 만들어야 완성된다.** 그때까지 목으로 돈다 — `npm run api:status` 가 센다. */
+  list: (q = {}) => request('GET /feedback-histories', () => {
+    let rows = DISP
+    if (q.supplierId) {
+      const name = SUP.find(s => s.id === +q.supplierId)?.name
+      rows = rows.filter(r => r.supplier === name)
+    }
+    /* 발송 상태는 한글로 비교한다 — 이 값의 영문 enum 이름을 확인하지 못했다.
+       ADR-0005 가 「피드백 4값」을 비워 둔 것과 같은 이유다. 지어내지 않는다. */
+    if (q.status) rows = rows.filter(r => [].concat(q.status).includes(r.state))
+    return page(rows, { ...q, size: q.size ?? 100 })
+  }),
   /** №29 PATCH /feedback-drafts/{draftId} { status: 'READY_TO_SEND' } — 확정 */
   confirm: id => request('PATCH /feedback-drafts/{draftId}', () => ({
     draftId: id, status: 'READY_TO_SEND', recipient: SUP.find(s => s.name === '성진스틸')?.email, confirmedBy: '이과장',

@@ -9,7 +9,7 @@ import { useUi } from '@/stores/ui'
 const ui = useUi()
 const rows = ref([])
 const filter = ref('전체')
-onMounted(async () => { rows.value = allRows(await Feedback.list(), 'GET /suppliers/{supplierId}/feedback-histories') })
+onMounted(async () => { rows.value = allRows(await Feedback.list(), 'GET /feedback-histories') })
 const STATES = ['전체', '발송 대기', '발송 성공', '발송 실패', '회신 없음']
 const shown = computed(() => filter.value === '전체' ? rows.value : rows.value.filter(r => r.state === filter.value))
 const waiting = computed(() => rows.value.filter(r => r.state === '발송 대기'))
