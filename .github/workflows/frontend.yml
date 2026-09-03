@@ -1,0 +1,33 @@
+# FE 검사. 손으로 돌려야 하는 검사는 사흘 뒤에 아무도 돌리지 않는다.
+#   lint       — oxlint + eslint
+#   api:verify — 목 API 의 「막는 쪽」이 실제로 막는지 (요구사항 1·7·14·19·30·31·32번)
+#   build      — 화면이 실제로 묶이는지
+name: frontend
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
+  push:
+    branches: [dev]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # --fix 없이 돈다. CI 가 고쳐서 통과시키면 검사가 아니다
+      - run: npx oxlint .
+      - run: npx eslint .
+      - run: npm run api:verify
+      - run: npm run build
