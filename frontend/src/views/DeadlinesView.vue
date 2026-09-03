@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Deadlines } from '@/api'
+import { Deadlines, allRows } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
@@ -10,14 +10,19 @@ const ui = useUi()
 const months = ref([]); const rows = ref([])
 onMounted(async () => {
   months.value = (await Deadlines.list()).months
-  rows.value = (await Deadlines.unsubmitted()).content
+  rows.value = allRows(await Deadlines.unsubmitted(), 'GET /submissions?status=NOT_SUBMITTED')
 })
 const picked = computed(() => rows.value.filter(r => r.checked))
 async function send() {
-  const ids = picked.value.map(r => r.id)
-  await Deadlines.remind(ids)
-  rows.value = rows.value.map(r => ids.includes(r.id) ? { ...r, lastSent: '2026-09-03', checked: false } : r)
-  ui.say(ids.length + '곳에 리마인드를 보냈습니다 · 이력은 협력사 상세에 남습니다')
+  /* 명세 14번의 targets 는 {supplierId, partId} 객체 배열이다. id 배열을 넘기고 있었다.
+     partId 는 목 데이터에 없다 — 없는 값을 지어내지 않고 비운 채 보낸다 (24번과 같은 규칙). */
+  const targets = picked.value.map(r => ({ supplierId: r.id, partId: r.partId ?? null }))
+  const ids = targets.map(t => t.supplierId)
+  try {
+    await Deadlines.remind(targets)
+    rows.value = rows.value.map(r => ids.includes(r.id) ? { ...r, lastSent: '2026-09-03', checked: false } : r)
+    ui.say(ids.length + '곳에 리마인드를 보냈습니다 · 이력은 협력사 상세에 남습니다')
+  } catch (e) { ui.say(`${e.status} ${e.code} · ${e.message}`) }
 }
 </script>
 
@@ -46,7 +51,9 @@ async function send() {
   </div>
   <div class="rmlist stage" style="--d:220ms">
     <div class="h"><span></span><span>협력업체</span><span>담당자 이메일</span><span>마지막 발송</span><span>미제출 경과</span></div>
-    <div v-for="r in rows" :key="r.id" class="rm" :class="{ on: r.checked }" @click="r.checked = !r.checked">
+    <div v-for="r in rows" :key="r.id" v-clickable class="rm" :class="{ on: r.checked }"
+         role="checkbox" :aria-checked="!!r.checked" :aria-label="`${r.name} 리마인드 대상`"
+         @click="r.checked = !r.checked">
       <i class="ck"></i><b>{{ r.name }}</b>
       <span class="ml">{{ r.email }}</span><span class="lt">{{ r.lastSent }}</span>
       <span class="ov" :class="{ late: r.late }">{{ r.overdue }}</span>

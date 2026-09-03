@@ -12,8 +12,28 @@ import { suppliers, parts } from '@/mocks/seed'
 import { PRODUCTS, EMISSIONS, INBOX, SUBMISSION, SUBMISSIONS, QUEUE, DEADLINES, REMINDERS, DISPATCH, TONES } from './fixtures'
 
 const clone = v => JSON.parse(JSON.stringify(v))
+/* 목이 상태를 바꾸는 대상은 예외 없이 복제해서 들고 있는다.
+   원본 fixture 를 직접 고치면 HMR 뒤나 다른 화면에서 변경이 남는 곳과 안 남는 곳이 갈린다. */
 let SUP = clone(suppliers)
 let PRT = clone(parts)
+const MAIL = clone(INBOX)
+const DISP = clone(DISPATCH)
+
+/** 목록 화면은 전량을 받아 브라우저에서 필터한다 — 패싯 배지 숫자가 전체 기준이어야 해서다(useTable).
+ *  서버가 페이지를 자르면 화면은 그 사실을 모른 채 일부만 보게 되므로, 잘렸으면 개발 콘솔에 남긴다.
+ *  BE 가 붙어 이 경고가 뜨면 필터·정렬을 서버로 옮겨야 한다는 신호다 — 이슈 #20. */
+export function allRows(res, where) {
+  if (import.meta.env?.DEV && res.totalElements > res.content.length)
+    console.warn(`[API] ${where}: ${res.totalElements}건 중 ${res.content.length}건만 받았다.`
+      + ' 화면이 브라우저에서 필터하므로 배지 숫자와 목록이 전체를 반영하지 않는다 (이슈 #20)')
+  return res.content
+}
+
+/* 요구사항 1번이 입력받는 여섯 항목 — 이 목록이 곧 필수값이다 */
+const REQUIRED = [
+  ['name', '협력업체명'], ['bizNo', '사업자 등록번호'], ['country', '국가'],
+  ['contact', '담당자명'], ['email', '담당자 이메일'], ['phone', '전화번호'],
+]
 
 /* ── 협력업체 (명세 №1~4) ───────────────────────────────── */
 export const Suppliers = {
@@ -41,6 +61,15 @@ export const Suppliers = {
   }),
   /** №1 POST /suppliers */
   create: body => request('POST /suppliers', () => {
+    /* 요구사항 1번이 받는다고 적은 여섯 항목. 하나라도 비면 등록하지 않는다.
+       빈 폼이 그대로 들어가면 담당자 이메일이 없는 협력사가 생기고, 19번 매칭 키가 사라진다. */
+    const blank = REQUIRED.filter(([k]) => !String(body[k] ?? '').trim())
+    if (blank.length)
+      throw new ApiError(400, 'MISSING_REQUIRED_FIELD',
+        `${blank.map(([, label]) => label).join(' · ')} 을(를) 입력해야 합니다`,
+        { fields: blank.map(([k]) => k) })
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))
+      throw new ApiError(400, 'INVALID_EMAIL_FORMAT', '담당자 이메일 형식이 올바르지 않습니다', { fields: ['email'] })
     if (SUP.some(s => s.bizNo && s.bizNo === body.bizNo))
       throw new ApiError(409, 'DUPLICATE_BUSINESS_NUMBER', '이미 등록된 사업자등록번호입니다', { fields: ['bizNo'] })
     if (SUP.some(s => s.email && s.email === body.email))
@@ -53,9 +82,11 @@ export const Suppliers = {
 
 /* ── 부품 (명세 №5~8) ───────────────────────────────────── */
 export const Parts = {
-  /** №7 GET /parts?search&supplierId&cnCode&page&size&sort */
+  /** №7 GET /parts?search&supplierId&cnCode&page&size&sort
+      공급 협력업체는 이름만이 아니라 id 도 함께 준다 — 화면이 협력사 상세로 이어야 해서다.
+      전에는 부품 목록의 모든 행이 `/suppliers/1` 로 갔다. 이름만 갖고 있어서였다. */
   list: (q = {}) => request('GET /parts', () => {
-    let rows = PRT
+    let rows = PRT.map(p => ({ ...p, supplierId: SUP.find(s => s.name === p.supplier)?.id ?? null }))
     if (q.q) rows = rows.filter(p => p.name.includes(q.q))
     if (q.supplier?.length) rows = rows.filter(p => q.supplier.includes(p.supplier))
     if (q.cn?.length) rows = rows.filter(p => q.cn.includes(p.cnGroup))
@@ -63,7 +94,9 @@ export const Parts = {
   }),
   /** №5 POST /parts — unregisteredPartId 를 함께 보내면 미등록 부품을 해소한다 (요구사항 28) */
   create: body => request('POST /parts', () => {
-    if (!/^\d{4} ?\d{2}$/.test(body.cn || ''))
+    /* 요구사항 7번 — 「CN코드는 8자리 숫자 형식 검증」.
+       공백은 표기 습관이라 허용하고(`7207 1100`), 숫자만 세어 8자리인지 본다. */
+    if (!/^\d{8}$/.test((body.cn || '').replace(/\s/g, '')))
       throw new ApiError(400, 'INVALID_CN_CODE', 'CN코드는 8자리 숫자여야 합니다', { fields: ['cn'] })
     if (PRT.some(p => p.name === body.name))
       throw new ApiError(409, 'DUPLICATE_PART_NAME', '같은 부품명이 이미 있습니다', { fields: ['name'] })
@@ -89,13 +122,20 @@ export const Products = {
 /* ── 이메일 접수 (명세 №15~18) ──────────────────────────── */
 export const Inbox = {
   /** №15 GET /mail-receipts?supplierId&status&receivedFrom&receivedTo */
-  list: () => request('GET /mail-receipts', () => page(INBOX, { size: 100 })),
+  list: () => request('GET /mail-receipts', () => page(MAIL, { size: 100 })),
   /** №18 PATCH /mail-receipts/{receiptId}/supplier — 미확인 건을 담당자가 직접 연결한다 */
   assign: (id, supplierName) => request('PATCH /mail-receipts/{receiptId}/supplier', () => {
-    const m = INBOX.find(x => x.id === id); if (m) { m.supplier = supplierName; m.state = '검토 대기' }
+    const m = MAIL.find(x => x.id === id)
+    if (!m) throw new ApiError(404, 'MAIL_RECEIPT_NOT_FOUND', '없는 접수 건입니다')
+    if (!SUP.some(s => s.name === supplierName))
+      throw new ApiError(404, 'SUPPLIER_NOT_FOUND', '없는 협력업체입니다', { fields: ['supplier'] })
+    m.supplier = supplierName; m.state = '검토 대기'; m.tone = 'processing'
     return m
   }),
 }
+
+/** 제출 건 → 그 건의 분석 작업. 같은 건을 다시 열면 같은 작업을 본다 */
+const TASK_OF = new Map()
 
 /* ── 제출 데이터 · 검토 (명세 №19~23) ───────────────────── */
 export const Analysis = {
@@ -104,7 +144,11 @@ export const Analysis = {
       진행 상태는 응답의 latestAnalysisTaskId 로 №19를 폴링해 확인한다. */
   get: id => request('GET /submissions/{submissionId}', () => {
     const s = SUBMISSIONS[id] ?? SUBMISSION
-    const task = startTask('내부 자동 실행 (요구사항 20)', 'analyze', { result: id })
+    /* 분석 작업은 제출 건마다 하나다. 상세를 다시 열었다고 새로 돌지 않는다 —
+       화면이 이 API 를 두 곳(자료 변환·검토 확정)에서 부르므로, 호출마다 만들면 작업이 쌓인다.
+       첫 인자가 null 인 것은 이 작업이 내부 자동 실행이라 엔드포인트가 없다는 뜻이다 (요구사항 20). */
+    if (!TASK_OF.has(id)) TASK_OF.set(id, startTask(null, 'analyze', { result: id }))
+    const task = TASK_OF.get(id)
     return { ...s, latestAnalysisTaskId: task.taskId, pollAfterMs: task.pollAfterMs }
   }),
   /** №19 GET /tasks/{taskId} */
@@ -127,12 +171,18 @@ export const Review = {
       throw new ApiError(400, 'UNREGISTERED_PART_EXISTS', '미등록 부품이 있어 확정할 수 없습니다', { unregisteredPartIds: s.unmappedParts })
     return { submissionId: id, status: 'CONFIRMED', confirmedBy: '이과장', confirmedAt: '2026-09-02T15:10:00+09:00' }
   }),
-  /** №23 POST /submissions/{submissionId}/reject — resultStatus 는 REJECTED | NOT_SUBMITTED */
-  reject: (id, reason, resultStatus = 'REJECTED') =>
-    request('POST /submissions/{submissionId}/reject', () => ({
-      submissionId: id, status: resultStatus, judgement: 'UNQUALIFIED',
-      reasonCode: 'MISSING_REQUIRED_FIELD', reason, rejectedBy: '이과장',
-    })),
+  /** №23 POST /submissions/{submissionId}/reject — resultStatus 는 REJECTED | NOT_SUBMITTED
+      요구사항 32 — 「상태를 부적격/미제출로 설정하고 **사유 저장**」.
+      사유 없는 반려는 피드백 초안(UC-10)이 근거로 쓸 것이 없어 막는다. */
+  reject: (id, reason, reasonCode = 'MISSING_REQUIRED_FIELD', resultStatus = 'REJECTED') =>
+    request('POST /submissions/{submissionId}/reject', () => {
+      if (!String(reason ?? '').trim())
+        throw new ApiError(400, 'REJECT_REASON_REQUIRED', '반려 사유를 입력해야 합니다', { fields: ['reason'] })
+      return {
+        submissionId: id, status: resultStatus, judgement: 'UNQUALIFIED',
+        reasonCode, reason, rejectedBy: '이과장', rejectedAt: new Date().toISOString(),
+      }
+    }),
 }
 
 /* ── 제출 마감 (명세 №13~14) ────────────────────────────── */
@@ -141,10 +191,15 @@ export const Deadlines = {
   list: () => request('GET /submission-deadlines', () => ({ from: '2025-10', to: '2026-09', months: DEADLINES })),
   /** №20 GET /submissions?status=NOT_SUBMITTED — 미제출은 제출 데이터 행이 없어 target 으로 식별한다 */
   unsubmitted: () => request('GET /submissions', () => page(REMINDERS, { size: 100 })),
-  /** №14 POST /reminders { reportingMonth, targets:[{supplierId, partId}] } */
-  remind: targets => request('POST /reminders', () => ({
-    taskId: 'tsk-101', status: 'PENDING', targetCount: targets.length,
-  })),
+  /** №14 POST /reminders { reportingMonth, targets:[{supplierId, partId}] }
+      화면이 id 배열을 그대로 넘기고 있었다 — 명세는 객체 배열을 받는다. */
+  remind: (targets, reportingMonth = '2026-09') => request('POST /reminders', () => {
+    if (!Array.isArray(targets) || !targets.length)
+      throw new ApiError(400, 'NO_REMINDER_TARGET', '보낼 대상을 하나 이상 골라야 합니다')
+    const bad = targets.filter(t => t?.supplierId == null)
+    if (bad.length) throw new ApiError(400, 'INVALID_REMINDER_TARGET', 'targets 에는 supplierId 가 있어야 합니다')
+    return { taskId: 'tsk-101', status: 'PENDING', reportingMonth, targetCount: targets.length }
+  }),
 }
 
 /* ── 피드백 (명세 №26~31) ───────────────────────────────── */
@@ -156,10 +211,10 @@ export const Feedback = {
   /** №31 GET /suppliers/{supplierId}/feedback-histories?type&status&from&to
       ⚠️ 명세는 협력업체별 조회만 정의한다. 지금 화면은 전체 발송 목록을 보여준다.
          전체 조회 경로를 추가할지 화면을 협력업체 상세로 옮길지 아직 답이 없다 — 이슈 #13. */
-  list: () => request('GET /suppliers/{supplierId}/feedback-histories', () => page(DISPATCH, { size: 100 })),
+  list: () => request('GET /suppliers/{supplierId}/feedback-histories', () => page(DISP, { size: 100 })),
   /** №29 PATCH /feedback-drafts/{draftId} { status: 'READY_TO_SEND' } — 확정 */
   confirm: id => request('PATCH /feedback-drafts/{draftId}', () => ({
-    draftId: id, status: 'READY_TO_SEND', recipient: 'kim@daehan.co.kr', confirmedBy: '이과장',
+    draftId: id, status: 'READY_TO_SEND', recipient: SUP.find(s => s.name === '성진스틸')?.email, confirmedBy: '이과장',
   })),
   /** №30 POST /feedback-drafts/{draftId}/send — 최초 발송 */
   send: ids => request('POST /feedback-drafts/{draftId}/send', () => ({

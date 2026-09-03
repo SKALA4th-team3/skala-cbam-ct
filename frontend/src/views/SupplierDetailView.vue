@@ -23,6 +23,14 @@ onMounted(async () => { s.value = await Suppliers.get(route.params.id) })
     </template>
   </ViewHead>
 
+  <!-- 명세 5번 — 「담당자 이메일, 연락처를 한 화면에서」. 담당자 이메일은 19번의 매칭 키이기도 하다 -->
+  <div v-if="s" class="contact stage" style="--d:100ms">
+    <div><span class="cap">담당자</span><b>{{ s.contact ?? '—' }}</b></div>
+    <div><span class="cap">담당자 이메일 · 매칭 키</span><b class="mono">{{ s.email ?? '—' }}</b></div>
+    <div><span class="cap">전화번호</span><b class="mono">{{ s.phone ?? '—' }}</b></div>
+    <div><span class="cap">사업자 등록번호</span><b class="mono">{{ s.bizNo ?? '—' }}</b></div>
+  </div>
+
   <div v-if="s" class="minis stage" style="--d:120ms">
     <div><div class="cap">판정</div><b>{{ s.judgement }}</b><span>이번 달 기준</span></div>
     <div><div class="cap">공급 부품</div><b>{{ s.parts.length }}</b><span>벤치마크 미등록 {{ s.parts.filter(p => !p.factor).length }}</span></div>

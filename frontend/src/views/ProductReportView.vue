@@ -1,14 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Products } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
 
-const router = useRouter()
+const route = useRoute(); const router = useRouter()
 const e = ref(null)
-onMounted(async () => { e.value = await Products.get('hr-2400') })
+/* 라우트가 /products/:id/report 인데 'hr-2400' 이 박혀 있어 어느 제품을 눌러도 같은 화면이었다 */
+onMounted(async () => { e.value = await Products.get(route.params.id) })
 const pct = computed(() => e.value ? Math.round(e.value.confirmed / e.value.total * 100) : 0)
 </script>
 

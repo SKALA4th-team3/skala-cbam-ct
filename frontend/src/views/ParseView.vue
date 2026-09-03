@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { Analysis } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import ActionBar from '@/components/ActionBar.vue'
-import StatusChip from '@/components/StatusChip.vue'
+import RawStdPair from '@/components/RawStdPair.vue'
 import { useUi } from '@/stores/ui'
 
 const router = useRouter(); const route = useRoute(); const ui = useUi()
@@ -12,6 +12,7 @@ const sub = ref(null)
 const state = ref('run')        // run · done · err
 const step = ref(3)
 let timer = null
+const stop = () => { clearInterval(timer); timer = null }
 
 onMounted(async () => {
   sub.value = await Analysis.get(route.params.id)
@@ -19,14 +20,21 @@ onMounted(async () => {
      상세가 준 latestAnalysisTaskId 로 №19를 폴링만 한다. */
   const { latestAnalysisTaskId: taskId, pollAfterMs } = sub.value
   timer = setInterval(async () => {
-    const t = await Analysis.task(taskId)
-    if (t.status === 'PROCESSING') step.value = 4
-    if (t.status === 'COMPLETED') { state.value = 'done'; step.value = 5; clearInterval(timer)
-      ui.say('변환 완료 · 항목 5개 중 2개는 사람 확인 대기') }
-    if (t.status === 'FAILED') { state.value = 'err'; clearInterval(timer); ui.say('분석 실패 · ' + t.error.message) }
+    /* 폴링이 던지면(작업이 사라진 404 등) 조용히 실패하면서 interval 은 계속 돈다.
+       읽지 못한 것을 「읽는 중」으로 두지 않는다 — 멈추고 그렇다고 말한다 (22번 「분석 실패」). */
+    try {
+      const t = await Analysis.task(taskId)
+      if (t.status === 'PROCESSING') step.value = 4
+      if (t.status === 'COMPLETED') { state.value = 'done'; step.value = 5; stop()
+        ui.say('변환 완료 · 항목 5개 중 2개는 사람 확인 대기') }
+      if (t.status === 'FAILED') { state.value = 'err'; stop(); ui.say('분석 실패 · ' + t.error.message) }
+    } catch (e) {
+      state.value = 'err'; stop()
+      ui.say(`분석 상태를 확인할 수 없습니다 · ${e.status ?? ''} ${e.code ?? e.message}`)
+    }
   }, pollAfterMs)
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(stop)
 
 const rawOnly = ref(false)
 const canPass = computed(() => state.value === 'done')
@@ -50,20 +58,7 @@ const canPass = computed(() => state.value === 'done')
     </div>
   </div>
 
-  <div class="pair stage" style="--d:200ms" :class="{ 'raw-only': rawOnly }">
-    <div class="h"><span>협력사 원문 · rawText</span><span>표준 데이터</span></div>
-    <div v-for="r in sub?.rows ?? []" :key="r.field" class="pr2" :class="r.tone">
-      <div class="raw">{{ r.raw }}</div>
-      <div class="std">
-        <span class="fld">{{ r.field }}</span>
-        <div class="v">
-          <b :class="{ nul: r.value === null }">{{ r.value ?? 'null' }}</b>
-          <span v-if="r.unit" class="u">{{ r.unit }}</span>
-          <StatusChip :label="r.note" :tone="r.tone" />
-        </div>
-      </div>
-    </div>
-  </div>
+  <RawStdPair :rows="sub?.rows ?? []" :class="{ 'raw-only': rawOnly }" />
 
   <ActionBar title="revision 2 · 이전 변환본은 is_current=false 로 남습니다."
              note="읽을 수 없는 값은 추정하지 않습니다 (NFR-04)">

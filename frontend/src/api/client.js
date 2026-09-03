@@ -98,8 +98,11 @@ export function logWiring() {
    실제 서버도 같은 계약을 지켜야 화면 코드를 안 고친다. */
 const tasks = new Map()
 
+/** @param endpoint 'POST /...' — 화면이 부른 엔드포인트.
+ *   내부 자동 실행(요구사항 20)처럼 부른 엔드포인트가 없으면 null 을 준다.
+ *   경로 아닌 문자열을 넣으면 api:status 집계가 흐려진다. */
 export function startTask(endpoint, kind, { ms = 2600, result = null, fail = false } = {}) {
-  mark(endpoint, 'mock')
+  if (endpoint) mark(endpoint, 'mock')
   const id = 'tsk-' + Math.random().toString(36).slice(2, 6)
   tasks.set(id, { id, kind, status: 'PENDING', startedAt: Date.now(), ms, result, fail })
   setTimeout(() => { const t = tasks.get(id); if (t && t.status === 'PENDING') t.status = 'PROCESSING' }, 400)

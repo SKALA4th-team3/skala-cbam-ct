@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Feedback } from '@/api'
+import { Feedback, allRows } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
@@ -9,7 +9,7 @@ import { useUi } from '@/stores/ui'
 const ui = useUi()
 const rows = ref([])
 const filter = ref('전체')
-onMounted(async () => { rows.value = (await Feedback.list()).content })
+onMounted(async () => { rows.value = allRows(await Feedback.list(), 'GET /suppliers/{supplierId}/feedback-histories') })
 const STATES = ['전체', '발송 대기', '발송 성공', '발송 실패', '회신 없음']
 const shown = computed(() => filter.value === '전체' ? rows.value : rows.value.filter(r => r.state === filter.value))
 const waiting = computed(() => rows.value.filter(r => r.state === '발송 대기'))
@@ -17,10 +17,24 @@ const failed = computed(() => rows.value.filter(r => r.state === '발송 실패'
 
 async function send() {
   const ids = waiting.value.map(r => r.id)
-  await Feedback.send(ids)
-  rows.value = rows.value.map(r => ids.includes(r.id)
-    ? { ...r, state: '발송 성공', tone: 'complete', when: '발송 2026-09-03 10:40', note: '회신 대기' } : r)
-  ui.say(ids.length + '건을 발송했습니다')
+  try {
+    await Feedback.send(ids)
+    rows.value = rows.value.map(r => ids.includes(r.id)
+      ? { ...r, state: '발송 성공', tone: 'complete', when: '발송 2026-09-03 10:40', note: '회신 대기' } : r)
+    ui.say(ids.length + '건을 발송했습니다')
+  } catch (e) { ui.say(`${e.status} ${e.code} · ${e.message}`) }
+}
+
+/** 재발송 — 실패한 것을 전부 보낸다. 전에는 failed[0] 한 건만 갔다.
+    명세 30번대로 사유가 필수다(SEND_FAILED). 사유 없이 보내면 서버가 400 으로 막는다. */
+async function resend() {
+  const targets = failed.value.map(r => r.id)
+  try {
+    for (const id of targets) await Feedback.resend(id, 'SEND_FAILED')
+    rows.value = rows.value.map(r => targets.includes(r.id)
+      ? { ...r, note: '재발송 대기', tone: 'processing', state: '발송 대기' } : r)
+    ui.say(`실패 ${targets.length}건을 재발송했습니다 · 사유 SEND_FAILED`)
+  } catch (e) { ui.say(`${e.status} ${e.code} · ${e.message}`) }
 }
 </script>
 
@@ -37,7 +51,7 @@ async function send() {
   </div>
 
   <div class="alerts stage" style="--d:160ms">
-    <div v-for="r in shown" :key="r.id" class="at">
+    <div v-for="r in shown" :key="r.id" class="at" style="cursor:default">
       <span class="rule">{{ r.rule }}</span>
       <div><b>{{ r.supplier }}</b><span class="sub">{{ r.line }}</span></div>
       <span class="why">{{ r.when }}</span>
@@ -48,10 +62,7 @@ async function send() {
 
   <ActionBar :title="`발송 대기 ${waiting.length}건을 한 번에 보낼 수 있습니다.`"
              note="수신자는 협력업체 담당자 이메일로 자동 설정되고, 원문 제출 건이 참조로 붙습니다">
-    <button v-if="failed.length" class="quiet"
-            @click="Feedback.resend(failed[0].id).then(() => ui.say('실패 1건을 재발송했습니다'))">
-      실패 {{ failed.length }}건 재발송
-    </button>
+    <button v-if="failed.length" class="quiet" @click="resend">실패 {{ failed.length }}건 재발송</button>
     <button class="btn" :disabled="!waiting.length" @click="send">{{ waiting.length }}건 발송</button>
   </ActionBar>
   <div class="spacer"></div>

@@ -9,10 +9,21 @@ import { useUi } from '@/stores/ui'
 const router = useRouter(); const ui = useUi()
 const tone = ref('격식')
 const body = ref([])
+const loading = ref(false)
 const TONES = ['격식', '간결', '친근']
-async function load() { body.value = (await Feedback.draft('sub-1', tone.value)).body }
+async function load() {
+  loading.value = true
+  try { body.value = (await Feedback.draft('sub-1', tone.value)).body }
+  catch (e) { ui.say(`${e.status ?? ''} ${e.code ?? e.message}`) }
+  finally { loading.value = false }
+}
 onMounted(load)
-function pick(t) { tone.value = t; load(); ui.say('문체 · ' + t) }
+/* 문체를 빠르게 두 번 누르면 늦게 온 응답이 먼저 온 것을 덮었다. 도는 동안 잠근다 */
+async function pick(t) {
+  if (loading.value || t === tone.value) return
+  tone.value = t; ui.say('문체 · ' + t)
+  await load()
+}
 </script>
 
 <template>
@@ -23,7 +34,7 @@ function pick(t) { tone.value = t; load(); ui.say('문체 · ' + t) }
 
   <div class="filters stage" style="--d:100ms">
     <span style="font-size:12.5px;color:var(--muted);margin-right:4px">문체</span>
-    <button v-for="t in TONES" :key="t" :class="{ on: tone === t }" @click="pick(t)">{{ t }}</button>
+    <button v-for="t in TONES" :key="t" :class="{ on: tone === t }" :disabled="loading" @click="pick(t)">{{ t }}</button>
   </div>
 
   <div class="letter stage" style="--d:160ms">
