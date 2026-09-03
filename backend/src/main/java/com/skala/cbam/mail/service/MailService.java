@@ -132,7 +132,7 @@ public class MailService {
         MailReceipt receipt = mailReceiptRepository.findById(receiptId)
                 .orElseThrow(() -> new MailException(MailErrorCode.MAIL_RECEIPT_NOT_FOUND));
 
-        if (receipt.getStatus() == MailReceiptStatus.MATCHED) {
+        if (receipt.getStatus() != MailReceiptStatus.UNMATCHED) {
             throw new MailException(MailErrorCode.ALREADY_MATCHED);
         }
 

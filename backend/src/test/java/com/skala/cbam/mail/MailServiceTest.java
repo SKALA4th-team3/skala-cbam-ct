@@ -154,14 +154,21 @@ class MailServiceTest {
     }
 
     @Test
-    void 수동_매칭은_이미_매칭된_건이면_막힌다() {
-        MailReceipt receipt = saveReceipt("<msg-5@mail.com>", MailReceiptStatus.UNMATCHED);
-        mailService.match(receipt.getId(), daehan.getId(), "demo");
+    void 수동_매칭은_미확인_외의_모든_상태에서_막힌다() {
+        for (MailReceiptStatus status : MailReceiptStatus.values()) {
+            if (status == MailReceiptStatus.UNMATCHED) {
+                continue;
+            }
+            MailReceipt receipt = saveReceipt("<blocked-" + status + "@mail.com>", status);
 
-        assertThatThrownBy(() -> mailService.match(receipt.getId(), daehan.getId(), "demo"))
-                .isInstanceOf(MailException.class)
-                .satisfies(e -> assertThat(((MailException) e).errorCode())
-                        .isEqualTo(MailErrorCode.ALREADY_MATCHED));
+            assertThatThrownBy(() -> mailService.match(receipt.getId(), daehan.getId(), "demo"))
+                    .as("status=%s", status)
+                    .isInstanceOf(MailException.class)
+                    .satisfies(e -> assertThat(((MailException) e).errorCode())
+                            .isEqualTo(MailErrorCode.ALREADY_MATCHED));
+            assertThat(receipt.getStatus()).isEqualTo(status);
+            assertThat(receipt.getSupplier()).isNull();
+        }
     }
 
     @Test

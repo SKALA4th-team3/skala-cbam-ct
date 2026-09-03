@@ -9,6 +9,7 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -39,6 +40,15 @@ abstract class MailApiExceptionHandling {
         for (ConstraintViolation<?> violation : e.getConstraintViolations()) {
             fieldErrors.put(lastPathNode(violation), violation.getMessage());
         }
+        return respond(MailErrorCode.INVALID_PARAMETER, request, Map.of("fieldErrors", fieldErrors));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ResponseEntity<MailErrorResponse> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException e, HttpServletRequest request) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        e.getBindingResult().getFieldErrors().forEach(error ->
+                fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage()));
         return respond(MailErrorCode.INVALID_PARAMETER, request, Map.of("fieldErrors", fieldErrors));
     }
 

@@ -13,6 +13,7 @@ import com.skala.cbam.mail.service.MailService;
 import com.skala.cbam.supplier.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -53,6 +55,7 @@ public class MailController extends MailApiExceptionHandling {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final Set<String> ALLOWED_DISPOSITIONS = Set.of("inline", "attachment");
+    private static final Map<String, String> SORTABLE_FIELDS = Map.of("receivedAt", "receivedAt");
 
     private final MailService mailService;
 
@@ -73,8 +76,7 @@ public class MailController extends MailApiExceptionHandling {
                 parseDayStart(receivedFrom, "receivedFrom"),
                 parseDayEnd(receivedTo, "receivedTo"));
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "receivedAt"));
-        return ResponseEntity.ok(mailService.listReceipts(condition, pageable));
+        return ResponseEntity.ok(mailService.listReceipts(condition, toPageable(page, size, sort)));
     }
 
     @Operation(summary = "접수 메일 상세 조회", description = "원문 메일 본문과 첨부파일 목록, 분석 실패 사유를 조회한다.")
@@ -116,8 +118,25 @@ public class MailController extends MailApiExceptionHandling {
     public ResponseEntity<MailReceiptMatchResponse> match(
             @PathVariable Long receiptId,
             @RequestHeader(value = "X-Operator-Id", defaultValue = "demo") String operatorId,
-            @RequestBody MailReceiptMatchRequest request) {
+            @Valid @RequestBody MailReceiptMatchRequest request) {
         return ResponseEntity.ok(mailService.match(receiptId, request.supplierId(), operatorId));
+    }
+
+    private Pageable toPageable(int page, int size, String sort) {
+        String[] parts = sort.split(",", 2);
+        String field = SORTABLE_FIELDS.get(parts[0].trim());
+        if (field == null) {
+            throw invalidParameter("sort", "정렬 가능한 필드는 " + SORTABLE_FIELDS.keySet() + " 뿐입니다");
+        }
+        Sort.Direction direction = Sort.Direction.ASC;
+        if (parts.length == 2) {
+            String requested = parts[1].trim();
+            if (!requested.equalsIgnoreCase("asc") && !requested.equalsIgnoreCase("desc")) {
+                throw invalidParameter("sort", "정렬 방향은 asc 또는 desc 여야 합니다");
+            }
+            direction = Sort.Direction.fromString(requested);
+        }
+        return PageRequest.of(page, size, Sort.by(direction, field));
     }
 
     private MailReceiptStatus parseStatus(String value) {

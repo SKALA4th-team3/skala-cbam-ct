@@ -1,5 +1,8 @@
 package com.skala.cbam.mail.dto;
 
+import jakarta.validation.constraints.NotNull;
+
 /** PATCH /api/v1/mail-receipts/{id}/supplier 요청 (API 명세 18행, 요구사항 19·21번). */
-public record MailReceiptMatchRequest(Long supplierId) {
+public record MailReceiptMatchRequest(
+        @NotNull(message = "supplierId 는 필수입니다") Long supplierId) {
 }
