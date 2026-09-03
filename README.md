@@ -30,7 +30,7 @@ cd backend  && ./gradlew bootRun            # http://localhost:8080
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-개발 환경은 기본 `dev` 프로필의 H2 인메모리를 사용한다. 운영 환경은 PostgreSQL을 사용한다 — [ADR-0003](docs/decisions/0003-database-profiles.md).
+개발 환경은 기본 `dev` 프로필의 H2 인메모리를 사용한다. 운영 환경은 PostgreSQL을 사용한다 — [ADR-0004](docs/decisions/0004-database-profiles.md).
 
 ### 운영 PostgreSQL
 
@@ -41,6 +41,30 @@ docker compose up -d
 docker compose ps
 docker compose logs -f postgres
 ```
+
+Docker Compose는 루트의 `.env`를 읽지만 Spring Boot는 이 파일을 자동으로 읽지 않는다. PostgreSQL에 애플리케이션을 연결하려면 `.env`의 값을 환경 변수로 불러오고 `prod` 프로필로 실행한다.
+
+macOS/Linux:
+
+```bash
+set -a
+source .env
+set +a
+export SPRING_PROFILES_ACTIVE=prod
+cd backend && ./gradlew bootRun
+```
+
+Windows PowerShell:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "prod"
+$env:DB_URL = "jdbc:postgresql://localhost:5432/cbam"
+$env:DB_USERNAME = "<.env의 DB_USERNAME>"
+$env:DB_PASSWORD = "<.env의 DB_PASSWORD>"
+cd backend; .\gradlew.bat bootRun
+```
+
+`DB_PORT` 또는 `POSTGRES_DB`를 기본값에서 변경했다면 `DB_URL`도 같은 포트와 DB 이름을 가리켜야 한다.
 
 컨테이너를 중지하고 제거하되 DB 데이터를 유지하려면 다음 명령을 사용한다.
 
@@ -54,7 +78,7 @@ DB 데이터까지 초기화할 때만 `--volumes`를 붙인다. **이 명령은
 docker compose down --volumes
 ```
 
-운영 프로필의 Hibernate는 `ddl-auto=validate`이므로 테이블을 자동 생성하지 않는다. 운영 스키마가 먼저 준비되지 않으면 애플리케이션은 기동에 실패한다.
+운영 프로필의 Hibernate는 `ddl-auto=validate`이므로 테이블을 자동 생성하지 않는다. 현재는 초기 운영 스키마가 준비되지 않아 `missing table [supplier]` 오류로 애플리케이션 기동이 실패한다. 초기 스키마를 별도 절차로 준비한 뒤 실행해야 한다.
 
 ## 개발 시작할 때
 
