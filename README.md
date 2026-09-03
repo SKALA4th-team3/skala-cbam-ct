@@ -36,9 +36,11 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 
 **`dev` 에서 브랜치를 딴다. PR 도 `dev` 로 낸다.** `main` 은 검증 끝난 것만 올라간다.
 
+**브랜치는 터미널이 아니라 Jira 이슈 화면의 「브랜치 만들기」로 만든다.** 원본 브랜치는 `dev`, 이름은 **이슈 키 하나**(`CBAM-43`)로 둔다.
+
 ```bash
-git switch dev && git pull
-git switch -c feat/be/24-unit-normalize    # {type}/{domain}/{번호-기능명}
+git fetch origin
+git switch CBAM-43        # Jira 가 만들어 둔 브랜치를 받아 온다
 ```
 
 형식은 [`docs/GIT_CONVENTION.md`](docs/GIT_CONVENTION.md) 를 본다.
