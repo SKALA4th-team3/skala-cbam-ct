@@ -37,22 +37,21 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 루트의 `.env.example`을 `.env`로 복사하고 DB 값을 채운 뒤, Docker Desktop을 실행한다.
 
 ```bash
-cd backend
-docker compose --env-file ../.env up -d
-docker compose --env-file ../.env ps
-docker compose --env-file ../.env logs -f postgres
+docker compose up -d
+docker compose ps
+docker compose logs -f postgres
 ```
 
 컨테이너를 중지하고 제거하되 DB 데이터를 유지하려면 다음 명령을 사용한다.
 
 ```bash
-docker compose --env-file ../.env down
+docker compose down
 ```
 
 DB 데이터까지 초기화할 때만 `--volumes`를 붙인다. **이 명령은 PostgreSQL 데이터를 복구할 수 없게 삭제한다.**
 
 ```bash
-docker compose --env-file ../.env down --volumes
+docker compose down --volumes
 ```
 
 운영 프로필의 Hibernate는 `ddl-auto=validate`이므로 테이블을 자동 생성하지 않는다. 운영 스키마가 먼저 준비되지 않으면 애플리케이션은 기동에 실패한다.
