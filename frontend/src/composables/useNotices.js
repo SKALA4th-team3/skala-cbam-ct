@@ -7,15 +7,22 @@
    이미 있는 목록 셋(접수함·발송 이력·미제출 경보)에서 «알려야 할 것»을 골라 보여준다.
    서버가 알림 API 를 주면 이 파일만 그것으로 바꾼다. */
 import { ref, computed } from 'vue'
-import { Inbox, Feedback, Dashboard } from '@/api'
+import { Inbox, Feedback, Dashboard, Review } from '@/api'
 
 const items = ref([])
 const loadedAt = ref(null)
+/** 상단 메뉴의 흐름 셋(접수함 → 검토 → 피드백)에 붙는 건수 — 「지금 어디에 일이 쌓였나」 */
+const counts = ref({ inbox: 0, review: 0, feedback: 0 })
 const seen = ref(new Set())     // 이번 세션에서 읽은 것. 새로고침하면 다시 «새로» 뜬다 — 서버 상태가 아니라서다
 
 export function useNotices() {
   async function load() {
-    const [mail, hist, board] = await Promise.all([Inbox.list(), Feedback.list(), Dashboard.summary()])
+    const [mail, hist, board, queue] = await Promise.all([Inbox.list(), Feedback.list(), Dashboard.summary(), Review.queue()])
+    counts.value = {
+      inbox: mail.content.filter(m => ['접수 대기', '미확인', '접수 불가', '분석 실패'].includes(m.state)).length,
+      review: queue.content.filter(r => r.status === '검토 대기').length,
+      feedback: board.draftable + hist.content.filter(h => h.state === '발송 대기').length,
+    }
     const out = []
     for (const m of mail.content) {
       if (m.state === '미확인') out.push({ id: 'mail-' + m.id, kind: '미확인', tone: 'missing', title: `미확인 발신자 · ${m.from}`, sub: `${m.subject} — 협력업체를 지정해야 분석이 돕니다 (19번)`, at: m.at, to: '/inbox' })
@@ -31,5 +38,5 @@ export function useNotices() {
   }
   const unread = computed(() => items.value.filter(n => !seen.value.has(n.id)).length)
   function markAll() { seen.value = new Set(items.value.map(n => n.id)) }
-  return { items, unread, load, markAll, loadedAt }
+  return { items, unread, counts, load, markAll, loadedAt }
 }

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Feedback, allRows } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
+import SubTabs from '@/components/SubTabs.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -34,6 +35,7 @@ async function draftAll() {
 </script>
 
 <template>
+  <SubTabs :tabs="[{ label: '초안', to: '/feedback', count: rows.length }, { label: '발송 관리', to: '/feedback/dispatch', count: waiting || null }]" />
   <ViewHead api="UC-10 · 피드백 · GET /feedback-drafts">
     <template #title>안내문이 필요한 곳 {{ rows.length }}건</template>
     <template #lede>부적격·미제출 건마다 판정 근거로 초안을 만들고(42번), 문체를 고르고(44번), 고치고(47번), 확정해 발송 대기로 보냅니다(48번).</template>

@@ -6,16 +6,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 const V = (name, path, comp, nav, globe, title) =>
   ({ name, path, component: comp, meta: { nav, globe, title } })
 
+/* 상단 메뉴 — 성격이 다른 것을 한 줄에 같은 무게로 두지 않는다.
+     home   관제 하나
+     flow   접수함 → 검토 → 피드백 — «일이 흐르는 순서». 화살표로 잇고 건수를 붙인다
+     master 협력사 · 부품 · 제품 — 기준정보. 매일 여는 화면이 아니라 드롭다운 한 단계 밑
+     tool   설정 — 오른쪽 아이콘
+   meta.nav 는 이 key 를 가리킨다. 마감(관제 밑)·발송 관리(피드백 밑)는 메뉴가 아니라 화면 안의 탭이다. */
 export const NAV = [
-  { key: 'dashboard', label: '관제',   to: '/' },
-  { key: 'inbox',     label: '접수함', to: '/inbox' },
-  { key: 'suppliers', label: '협력사', to: '/suppliers' },
-  { key: 'parts',     label: '부품',   to: '/parts' },
-  { key: 'products',  label: '제품',   to: '/products' },
-  { key: 'review',    label: '검토',   to: '/review' },
-  { key: 'feedback',  label: '피드백', to: '/feedback' },
-  { key: 'settings',  label: '설정',   to: '/settings' },
+  { key: 'dashboard', label: '관제',   to: '/',          group: 'home' },
+  { key: 'inbox',     label: '접수함', to: '/inbox',     group: 'flow' },
+  { key: 'review',    label: '검토',   to: '/review',    group: 'flow' },
+  { key: 'feedback',  label: '피드백', to: '/feedback',  group: 'flow' },
+  { key: 'suppliers', label: '협력사', to: '/suppliers', group: 'master' },
+  { key: 'parts',     label: '부품',   to: '/parts',     group: 'master' },
+  { key: 'products',  label: '제품',   to: '/products',  group: 'master' },
+  { key: 'settings',  label: '설정',   to: '/settings',  group: 'tool' },
 ]
+export const navOf = key => NAV.find(n => n.key === key) ?? null
 
 const G = (lat, lon, zoom, cy, alpha, deep = false) => ({ lat, lon, zoom, cy, alpha, deep })
 

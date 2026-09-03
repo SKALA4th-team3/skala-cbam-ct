@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Deadlines, allRows } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
+import SubTabs from '@/components/SubTabs.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import SkeletonRows from '@/components/SkeletonRows.vue'
@@ -37,6 +38,7 @@ const toggleAll = () => { const v = !allOn.value; rows.value.forEach(r => (r.che
 </script>
 
 <template>
+  <SubTabs :tabs="[{ label: '요약', to: '/' }, { label: '마감', to: '/deadlines', count: now ? `D-${now.dDay}` : null }]" />
   <ViewHead api="UC-09 · 마감 · GET /submission-deadlines" back="관제" backTo="/">
     <template #title><template v-if="now">{{ Number(now.month.slice(5)) }}월 마감까지 <b :class="{ warn: now.alarm }">{{ now.dDay }}일</b> 남았습니다.</template><span v-else class="shim">마감을 세는 중</span></template>
     <template #lede>마감일은 매월 말일로 고정입니다. D-7 부터 미제출 업체에 경보가 뜹니다 (16번). 협력끊김 업체는 대상에서 빠집니다 (6번).</template>

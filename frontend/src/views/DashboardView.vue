@@ -1,4 +1,5 @@
 <script setup>
+import SubTabs from '@/components/SubTabs.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBoard } from '@/stores/board'
@@ -56,6 +57,7 @@ async function draftAll() {
 </script>
 
 <template>
+  <SubTabs :tabs="[{ label: '요약', to: '/' }, { label: '마감', to: '/deadlines', count: S?.dDay != null ? `D-${S.dDay}` : null }]" />
   <div class="brief stage" style="--d:0ms">
     <div class="when"><i></i>{{ board.recalculated ? '방금 재판정' : `마지막 재판정 ${when}` }}</div>
     <h1 v-if="S">

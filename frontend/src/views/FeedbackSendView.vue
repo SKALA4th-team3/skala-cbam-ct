@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Feedback, allRows } from '@/api'
 import ViewHead from '@/components/ViewHead.vue'
+import SubTabs from '@/components/SubTabs.vue'
 import ActionBar from '@/components/ActionBar.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import SkeletonRows from '@/components/SkeletonRows.vue'
@@ -41,6 +42,7 @@ async function resend() {
 </script>
 
 <template>
+  <SubTabs :tabs="[{ label: '초안', to: '/feedback' }, { label: '발송 관리', to: '/feedback/dispatch', count: waiting.length || null }]" />
   <ViewHead api="UC-11 · 피드백 발송 · POST /feedback-drafts/{draftId}/send" back="피드백" backTo="/feedback">
     <template #title>확정된 피드백 {{ waiting.length }}건이 발송을 기다립니다.</template>
     <template #lede>확정하면 수신자 · 제목 · 본문이 잠깁니다. 발송 실패는 사유와 함께 기록되고(51번) 재발송할 수 있습니다(52번). 업체별 이력은 협력사 상세에서도 봅니다(53번).</template>
