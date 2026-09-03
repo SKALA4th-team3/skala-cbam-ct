@@ -1,4 +1,4 @@
-package com.skala.cbam.task.domain;
+package com.skala.cbam.common.domain;
 
 /**
  * 비동기 작업 실행 상태.

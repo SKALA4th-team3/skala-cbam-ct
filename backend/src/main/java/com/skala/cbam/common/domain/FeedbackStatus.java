@@ -1,4 +1,4 @@
-package com.skala.cbam.feedback.domain;
+package com.skala.cbam.common.domain;
 
 /**
  * 피드백 초안 검토 상태.
@@ -7,6 +7,7 @@ package com.skala.cbam.feedback.domain;
  */
 public enum FeedbackStatus {
     DRAFT,
+    REVISED,
     READY_TO_SEND,
     DISCARDED
 }
