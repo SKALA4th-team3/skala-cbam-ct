@@ -566,8 +566,10 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;str
 .reject .subhead{padding:16px 0 12px}
 .rj-row{display:grid;grid-template-columns:98px minmax(0,1fr);gap:16px;align-items:start;padding:8px 0}
 .rj-cap{font-size:12.5px;color:var(--muted);padding-top:8px}
-.rj-opts{display:flex;gap:7px}
-.rj-opts.wrap{flex-wrap:wrap}
+.rj-opts{display:flex;gap:7px;flex-wrap:wrap}
+/* ⚠️ 여기에 `.wrap` 을 쓰면 안 된다 — 19행의 앱 루트 레이아웃(`min-height:100vh;flex-direction:column`)과
+      같은 이름이라 버튼이 세로로 늘어지고 패널이 화면 높이만큼 벌어진다.
+      base.css 는 전역 한 장이라 클래스 이름이 짧으면 이렇게 부딪힌다. */
 .rj-opts button{padding:6px 11px;border-radius:999px;border:1px solid var(--hair);background:var(--bg);
   color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer;transition:.15s}
 .rj-opts button:hover{border-color:var(--hair-2);color:var(--text-2)}

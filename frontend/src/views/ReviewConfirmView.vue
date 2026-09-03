@@ -97,7 +97,7 @@ async function reject() {
 
     <div class="rj-row">
       <span class="rj-cap">규칙 코드</span>
-      <div class="rj-opts wrap">
+      <div class="rj-opts">
         <button v-for="r in rules" :key="r.rule" :title="r.desc"
                 :class="{ on: reasonCode === r.rule }"
                 @click="reasonCode = r.rule; reasonText = `${r.name} — ${blockers.join(' · ') || r.desc}`">
