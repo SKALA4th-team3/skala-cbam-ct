@@ -13,12 +13,24 @@
 
 [`CLAUDE.md`](CLAUDE.md)는 `AGENTS.md`와 **같은 파일이다.** 도구마다 읽는 이름이 달라 둘 다 둔다 — 한쪽을 고치면 다른 쪽도 같이 고친다.
 
-## 기술 스택
+## 디렉터리
 
-| | |
-| --- | --- |
-| Backend | Java · Spring Boot |
-| Frontend | Vue.js |
+| | | 브랜치 도메인 |
+| --- | --- | --- |
+| [`backend/`](backend/) | Spring Boot 4.1 · Java 21 · Gradle | `be` |
+| [`frontend/`](frontend/) | Vue 3 · Vite · JavaScript | `fe` |
+| [`docs/`](docs/) | 명세 · 컨벤션 · 기술 결정 | — |
+
+## 실행
+
+```bash
+cp .env.example .env          # 값을 채운다. .env 는 커밋되지 않는다
+
+cd backend  && ./gradlew bootRun            # http://localhost:8080
+cd frontend && npm install && npm run dev   # http://localhost:5173
+```
+
+**DB 는 아직 안 정했다.** 기본값은 부팅용 H2 인메모리다 — [ADR-0002](docs/decisions/0002-project-scaffold.md).
 
 ## 규칙 요약
 

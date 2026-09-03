@@ -39,7 +39,7 @@ fix/be/18-message-id-dedupe
 | 자리 | 값 |
 | --- | --- |
 | `{type}` | 커밋 Type을 **소문자로** — `feat` `fix` `docs` `chore` `refactor` `test` … |
-| `{domain}` | **`be` 또는 `fe`** |
+| `{domain}` | **`be` 또는 `fe`** — `be` = [`backend/`](../backend/), `fe` = [`frontend/`](../frontend/) |
 | `{feature}` | **요구사항 번호를 앞에 붙이고** 작업 기능명을 간결하게 |
 
 **소문자 케밥케이스만 쓴다.**
