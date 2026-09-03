@@ -25,6 +25,15 @@ export const SUBMISSION_JUDGEMENT = {
 /** 심각도 — 요구사항도 영문이라 변환할 것이 없다 (R1~R7 → 36번이 부여한다) */
 export const SEVERITY = ['HIGH', 'MEDIUM', 'LOW']
 
+/** 국가 — 서버는 ISO 3166-1 alpha-2 코드를 쓴다. 화면과 요구사항 명세는 한글이다.
+ *  실서버에 확인했다: `?country=KR` 200 · `?country=대한민국` 400.
+ *  목 데이터에 있는 세 곳만 넣는다 — 쓰지 않는 나라를 미리 채워 두지 않는다. */
+export const COUNTRY = {
+  KR: '대한민국',
+  VN: '베트남',
+  ID: '인도네시아',
+}
+
 /* ⚠️ 아직 매핑하지 못한 것 — 지어내지 않고 비워 둔다.
    API 명세 v10 의 enum 이름을 확인하지 못했다. 확인되면 위와 같은 모양으로 추가한다.
      · 접수 4값   — 접수 대기 · 미확인 · 접수 불가 · 분석 실패 (요구사항 19·20·22번)
@@ -33,7 +42,7 @@ export const SEVERITY = ['HIGH', 'MEDIUM', 'LOW']
    실서버가 영문으로 내려주면 화면 필터가 빈 목록이 되면서 드러난다. */
 
 /** enum → 한글 */
-const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_JUDGEMENT }
+const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_JUDGEMENT, ...COUNTRY }
 /** 한글 → enum */
 const CODE = Object.fromEntries(Object.entries(LABEL).map(([code, label]) => [label, code]))
 
@@ -42,8 +51,9 @@ export const toLabel = v => LABEL[v] ?? v
 /** 값 하나를 서버로 보낼 enum 으로. 모르는 값은 그대로 */
 export const toCode = v => CODE[v] ?? v
 
-/** 상태값이 담기는 필드 이름 — 이 필드만 훑는다. 숫자·문장은 건드리지 않는다 */
-const STATUS_FIELDS = new Set(['tie', 'judgement', 'state', 'status', 'resultStatus', 'severity'])
+/** 변환 대상 필드 이름 — 이 필드만 훑는다. 숫자·문장은 건드리지 않는다.
+    `country` 도 여기 있다 — 상태값은 아니지만 같은 경계에서 코드↔한글이 오간다 */
+const STATUS_FIELDS = new Set(['tie', 'judgement', 'state', 'status', 'resultStatus', 'severity', 'country'])
 
 const walk = (v, map) => {
   if (Array.isArray(v)) return v.map(x => walk(x, map))

@@ -6,8 +6,9 @@
    상태값은 서버가 영문 enum(ACTIVE·QUALIFIED·NOT_SUBMITTED …), 화면이 한글(협력유지중·적격·미제출 …)이다.
    ADR-0005 로 정했다 — 매핑표는 enums.js, 응답 변환은 client.js 의 request() 한 곳,
    서버로 보내는 필터·정렬은 각 엔드포인트가 toServer() 로 바꿔 보낸다. */
-import { request, page, startTask, getTask, ApiError } from './client'
+import { request, page, startTask, getTask, http, ApiError } from './client'
 import { toServer, toCode } from './enums'
+import { supplierToServer, supplierRowFromServer, supplierDetailFromServer } from './shapes'
 import { suppliers, parts } from '@/mocks/seed'
 import { PRODUCTS, EMISSIONS, INBOX, SUBMISSION, SUBMISSIONS, QUEUE, DEADLINES, REMINDERS, DISPATCH, TONES } from './fixtures'
 
@@ -53,13 +54,29 @@ export const Suppliers = {
     if ((query.sort ?? 'companyName') === 'companyName')
       rows = [...rows].sort((a, b) => a.name.localeCompare(b.name))
     return page(rows, query)
+  }, async () => {
+    const query = toServer(q)
+    /* ⚠️ BE 는 size 를 100 까지만 받는다 (실서버 확인: size=1000 → 400).
+       ADR-0009 는 「목록은 페이징하지 않는다」인데 서버 상한이 그보다 낮다 —
+       협력사 48곳은 한 번에 들어오지만 그 위로는 못 받는다. 잘리면 allRows() 가 경고한다. */
+    const res = await http('GET', '/suppliers', {
+      query: {
+        search: query.q, country: query.country, status: query.tie,
+        submissionStatus: query.judgement, months: 12,
+        page: query.page ?? 0, size: Math.min(query.size ?? 20, 100),
+        sort: query.sort,
+      },
+    })
+    return { ...res, content: (res.content ?? []).map(supplierRowFromServer) }
   }),
   /** №4 GET /suppliers/{supplierId} */
   get: id => request('GET /suppliers/{supplierId}', () => {
     const s = SUP.find(x => x.id === +id)
     if (!s) throw new ApiError(404, 'SUPPLIER_NOT_FOUND', '없는 협력업체입니다')
     return { ...s, parts: PRT.filter(p => p.supplier === s.name) }
-  }),
+  }, async () => supplierDetailFromServer(
+    await http('GET', `/suppliers/${id}`, { query: { months: 12 } }),
+  )),
   /** №1 POST /suppliers */
   create: body => request('POST /suppliers', () => {
     /* 요구사항 1번이 받는다고 적은 여섯 항목. 하나라도 비면 등록하지 않는다.
@@ -78,7 +95,9 @@ export const Suppliers = {
     const row = { id: SUP.length + 1, judgement: '미제출', tie: '협력유지중', strip: '0'.repeat(12), ...body }
     SUP = [row, ...SUP]
     return row
-  }),
+  }, async () => supplierDetailFromServer(
+    await http('POST', '/suppliers', { body: supplierToServer(body) }),
+  )),
 }
 
 /* ── 부품 (명세 №5~8) ───────────────────────────────────── */

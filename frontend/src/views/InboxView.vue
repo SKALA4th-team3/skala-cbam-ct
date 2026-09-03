@@ -18,8 +18,9 @@ onMounted(async () => {
 
 const unknown = computed(() => items.value.filter(m => !m.supplier))
 
-/* 요구사항 19번 — 「일치하는 업체가 없으면 「미확인」으로 두고 담당자에게 알린다」.
-   담당자가 직접 연결하는 것이 이 화면의 일이다.
+/* 요구사항 **21번** — 「미확인 건은 담당자가 협력업체를 직접 지정할 수 있다」.
+   19번은 그 앞 단계다 — 발신 주소를 담당자 이메일과 대조해 식별하고,
+   「일치하는 업체가 없으면 미확인으로 두고 담당자에게 알린다」. 지정 권한은 21번이 준다.
    전에는 어느 건을 눌러도 '대한화학' 으로 고정 지정됐다 — 골라야 기능이다. */
 const picking = ref(null)     // 지금 협력사를 고르는 중인 접수 건 id
 const q = ref('')
@@ -31,7 +32,8 @@ const matches = computed(() => {
   return rows.slice(0, 8)
 })
 
-/** 발신 주소로 먼저 찾아 본다 — 담당자 이메일이 매칭 키다 (요구사항 1번·19번) */
+/** 발신 주소로 먼저 찾아 본다 — 담당자 이메일이 매칭 키다 (요구사항 1번·19번).
+    고르는 것은 사람이다. 화면이 대신 지정하지 않는다 (21번) */
 const guess = m => suppliers.value.find(s => s.email && m.from?.toLowerCase().includes(s.email.toLowerCase()))
 
 function openPicker(m) {

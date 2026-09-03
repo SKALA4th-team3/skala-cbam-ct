@@ -46,7 +46,8 @@ const t = useTable(rows, { search: 'name', facets, sorts })
   <div class="list stage" style="--d:180ms">
     <div v-for="s in t.filtered" :key="s.id" v-clickable class="row link"
          :aria-label="`${s.name} 상세`" @click="router.push(`/suppliers/${s.id}`)">
-      <div class="n"><b>{{ s.name }}</b><span>{{ s.city }} · {{ s.item }}</span></div>
+      <!-- 도시·품목은 명세 №3 응답에 없다. 실서버에서는 비어 오므로 「 · 」만 남지 않게 거른다 -->
+      <div class="n"><b>{{ s.name }}</b><span>{{ [s.city, s.item].filter(Boolean).join(' · ') }}</span></div>
       <SubmissionStrip :pattern="s.strip" />
       <StatusBadge :value="s.judgement" />
     </div>

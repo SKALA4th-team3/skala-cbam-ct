@@ -17,22 +17,55 @@
 | 부분 수정 | **PATCH** (PUT 안 씀) · 상태 전이는 **POST** |
 | 담당자 | `X-Operator-Id` 헤더 — **인증이 아니라 감사 기록용** |
 
-엔드포인트 현황은 `npm run api:status` 로 센다. **21건이 선언돼 있고 전부 목이다** — 그중 `GET /feedback-histories` 하나가 명세에 없는 **설계 파생**이다 (ADR-0008).
+엔드포인트 현황은 `npm run api:status` 로 센다. **21건이 선언돼 있고, 그중 3건은 실서버 구현이 붙어 있다** — 협력업체 등록·목록·상세다. 나머지는 목이고, `GET /feedback-histories` 하나는 명세에 없는 **설계 파생**이다 (ADR-0008).
+
+```bash
+npm run api:verify   # 40건 · 목의 막는 쪽
+npm run api:real     # 16건 · 실서버(8080)에 실제로 붙여 필드 이름·국가 코드·상태값 경계를 센다
+```
+
+**목을 쓰는 동안에도 실서버 경로가 코드에 있다.** `.env` 의 `VITE_REAL_API` 에 엔드포인트를 넣으면 그 엔드포인트만 실서버로 간다 — 화면 코드는 그대로다.
 목이 정한 대로 동작하는지는 `npm run api:verify` 로 센다 — 상태값 경계(ADR-0005)·기본 정렬(ADR-0007)·확정을 **막는 쪽**(31번)을 확인한다.
+
+---
+
+## 실서버에 붙여 확인한 것 — 협력업체 3건
+
+**`dev` 의 BE 를 8080 에 띄우고 실제로 요청을 넣어 확인했다** (`npm run api:real` · 16건 통과).
+읽어서 대조한 것이 아니라 응답을 받아 본 것이다.
+
+| 확인 | 결과 |
+| --- | --- |
+| `POST /suppliers` | 201 — 화면 폼(`name`·`bizNo`·`contact`·`email`)이 `companyName`·`businessRegistrationNumber`·`contactName`·`contactEmail` 로 나간다 |
+| **국가** | 화면의 **「대한민국」이 `KR` 로 나가고 「대한민국」으로 돌아온다.** `?country=대한민국` 을 그대로 보내면 **400** 이다 |
+| **상태값** | `?status=ACTIVE` 200 · `?status=협력유지중` **400**. **ADR-0005 의 결정이 실서버에서 맞다** |
+| **정렬** | `?sort=severity` → **400** 「정렬 가능한 필드는 [companyName] 뿐입니다」. **ADR-0007 대로다** |
+| 막는 쪽 | 같은 사업자등록번호 **409** · 이메일 형식 **400**. 둘 다 **어느 칸이 문제인지** 화면 폼 이름으로 전달된다 |
+
+**에러 바디의 필드 목록 이름이 다르다** — BE 는 `details.fieldErrors`(객체), 화면은 `details.fields`(배열)를 읽는다. `client.js` 의 `http()` 가 경계에서 채워 준다. 409 중복은 서버가 `details` 를 비워 보내므로 **에러 코드에서 칸 이름을 끌어온다**(`DUPLICATE_BUSINESS_NUMBER` → `bizNo`).
 
 ---
 
 ## 아직 어긋나는 것 — 팀이 정해야 한다
 
-**지금은 없다.** 열려 있던 다섯 건이 모두 아래 「닫힌 것」으로 내려갔다.
+### 1. 명세 №3 응답에 **판정 결과·도시·품목이 없다**
 
-**대신 BE 가 해야 하는 것이 하나 남았다** — [ADR-0008](../docs/decisions/0008-feedback-history-list-endpoint.md) 의 `GET /feedback-histories`.
-FE 는 그 경로를 이미 선언했고 목으로 돈다. **BE 가 만들어야 이 결정이 완성된다.**
+`SupplierSummaryResponse` 는 `id`·`companyName`·`country`·`status`·`monthlyStatus[]` 뿐이다. 그런데 화면은
 
-```bash
-npm run api:status   # 21건 · 전부 목. 그중 GET /feedback-histories 는 설계 파생 1건이다
-npm run api:verify   # 37건 · 막는 쪽이 실제로 막는지
-```
+- **판정 배지**(적격/부적격/미제출)를 보여주고 **요구사항 4번이 그 필터를 요구한다**
+- 도시·품목을 부제로 보여준다 — **이건 목업이 만든 값이고 요구사항 3번에 없다.** 실서버에서는 비워 두고 「 · 」도 안 남게 걸렀다
+
+**⚠️ 판정은 지금 `monthlyStatus` 의 가장 최근 달에서 끌어 쓴다** (`shapes.js`). 제출 행이 없으면 미제출로 본다 — 「제출 데이터 행이 없어 `id=null` + `target`」이라는 명세 자신의 표현을 따른 것이다. **확인받은 유도가 아니다.** BE 가 응답에 판정을 넣어 주면 그 줄을 지운다.
+
+### 2. BE 가 `size` 를 100 까지만 받는다 (ADR-0009 와 어긋난다)
+
+[ADR-0009](../docs/decisions/0009-no-paging-on-list-screens.md) 는 「목록은 페이징하지 않는다 = 서버가 전량을 준다」인데, 실서버는 `size=1000` 에 **400** 을 준다(`size 는 100 이하여야 합니다`).
+
+**협력사 48곳은 한 번에 들어오지만 그 위로는 못 받는다.** 부품이 100개를 넘으면 잘린다 — 그때 `allRows()` 경고가 뜬다. 상한을 올릴지, 필터를 서버로 옮길지는 그 경고가 뜰 때 정한다.
+
+### 3. BE 가 만들어야 하는 것 하나
+
+[ADR-0008](../docs/decisions/0008-feedback-history-list-endpoint.md) 의 `GET /feedback-histories`. FE 는 선언했고 목으로 돈다.
 
 ---
 

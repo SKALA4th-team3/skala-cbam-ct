@@ -66,6 +66,57 @@ export async function request(endpoint, handler, real) {
   return fromServer(handler())
 }
 
+/* ── 실서버 전송 ──────────────────────────────────────────────────
+   BE 가 붙은 엔드포인트만 이 길로 간다 (.env 의 VITE_REAL_API).
+   에러 바디는 규약 3항 모양 그대로 오는데 **필드 목록의 이름이 다르다** —
+   BE 는 `details.fieldErrors` 를 객체로 주고, 화면은 `details.fields` 를 배열로 읽는다.
+   실서버에 확인했다: `{"code":"INVALID_REQUEST","details":{"fieldErrors":{"country":"…"}}}`.
+   그래서 여기서 fields 를 함께 채워 준다 — 원본 fieldErrors 도 남긴다(메시지가 그 안에 있다). */
+const qs = q => {
+  const p = new URLSearchParams()
+  for (const [k, v] of Object.entries(q ?? {})) {
+    if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue
+    /* 배열 필터는 첫 값만 보낸다 — 명세 №3 의 country·status 는 단일값이다.
+       화면의 다중 선택은 브라우저가 거른다 (ADR-0009). */
+    p.set(k, Array.isArray(v) ? v[0] : v)
+  }
+  const s = p.toString()
+  return s ? `?${s}` : ''
+}
+
+/* 409 중복 오류는 `details` 가 비어 온다 (실서버 확인: DUPLICATE_BUSINESS_NUMBER → `"details":{}`).
+   어느 칸이 문제인지 화면이 붉게 표시하려면 필드 이름이 필요하다 —
+   **에러 코드가 그것을 결정적으로 말해 주므로** 코드에서 끌어온다. 지어내는 것이 아니다. */
+const FIELDS_OF_CODE = {
+  DUPLICATE_BUSINESS_NUMBER: ['bizNo'],
+  DUPLICATE_CONTACT_EMAIL: ['email'],
+}
+
+/** 서버 필드 이름 → 화면 폼 필드 이름. shapes.js 의 반대 방향이다 */
+const FORM_FIELD = {
+  companyName: 'name', businessRegistrationNumber: 'bizNo',
+  contactName: 'contact', contactEmail: 'email', phone: 'phone', country: 'country',
+}
+
+export async function http(method, path, { query, body } = {}) {
+  const res = await fetch(`${BASE}${path}${qs(query)}`, {
+    method,
+    headers: headers(),
+    ...(body !== undefined && { body: JSON.stringify(body) }),
+  })
+  if (res.status === 204) return null
+  const text = await res.text()
+  const json = text ? JSON.parse(text) : null
+  if (!res.ok) {
+    const d = json?.details ?? {}
+    const code = json?.code ?? 'UNKNOWN'
+    const named = d.fields ?? Object.keys(d.fieldErrors ?? {}).map(f => FORM_FIELD[f] ?? f)
+    const fields = named.length ? named : (FIELDS_OF_CODE[code] ?? [])
+    throw new ApiError(res.status, code, json?.message ?? res.statusText, { ...d, fields })
+  }
+  return json
+}
+
 /** 목록 응답 공통 봉투 — API 명세서 v10 규약 4항.
     목록 API 는 예외 없이 content·page·size·totalElements·totalPages 다섯 키를 반환한다.
     page 는 0부터다. */
