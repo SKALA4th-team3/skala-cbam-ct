@@ -1,0 +1,71 @@
+/* 상태값 경계 — 서버는 영문 enum, 화면은 한글.
+   ADR-0004 로 정했다. 변환은 이 파일과 api/index.js 두 곳에서만 일어난다.
+     · 응답: 영문 enum → 한글 라벨 (fromServer)
+     · 요청: 한글 라벨 → 영문 enum (toServer)
+   화면 코드와 요구사항 명세는 한글 그대로 유지된다.
+
+   ⚠️ 매핑에 없는 값은 지어내지 않고 그대로 통과시킨다.
+      요구사항 24번과 같은 규칙이다 — 모르면 채우지 말고 비운 채 지나간다.
+      그래서 이 함수들은 목(한글)에도 실서버(영문)에도 안전하다. */
+
+/** 협력업체 거래 상태 — 요구사항 「상태값」 · API 명세 v10 SupplierStatus */
+export const SUPPLIER_TIE = {
+  ACTIVE: '협력유지중',
+  INACTIVE: '협력끊김',
+}
+
+/** 제출 데이터 판정 — 요구사항 「상태값」 · API 명세 v10 SubmissionStatus */
+export const SUBMISSION_JUDGEMENT = {
+  REVIEW_PENDING: '검토 대기',
+  QUALIFIED: '적격',
+  UNQUALIFIED: '부적격',
+  NOT_SUBMITTED: '미제출',
+}
+
+/** 심각도 — 요구사항도 영문이라 변환할 것이 없다 (R1~R7 → 36번이 부여한다) */
+export const SEVERITY = ['HIGH', 'MEDIUM', 'LOW']
+
+/* ⚠️ 아직 매핑하지 못한 것 — 지어내지 않고 비워 둔다.
+   API 명세 v10 의 enum 이름을 확인하지 못했다. 확인되면 위와 같은 모양으로 추가한다.
+     · 접수 4값   — 접수 대기 · 미확인 · 접수 불가 · 분석 실패 (요구사항 19·20·22번)
+     · 피드백 4값 — 초안 · 수정본 · 발송 대기 · 폐기 (요구사항 44~48번)
+   확인되기 전까지 이 값들은 한글 그대로 오간다. 목에서는 문제가 없고,
+   실서버가 영문으로 내려주면 화면 필터가 빈 목록이 되면서 드러난다. */
+
+/** enum → 한글 */
+const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_JUDGEMENT }
+/** 한글 → enum */
+const CODE = Object.fromEntries(Object.entries(LABEL).map(([code, label]) => [label, code]))
+
+/** 값 하나를 화면 표시값으로. 모르는 값은 그대로 */
+export const toLabel = v => LABEL[v] ?? v
+/** 값 하나를 서버로 보낼 enum 으로. 모르는 값은 그대로 */
+export const toCode = v => CODE[v] ?? v
+
+/** 상태값이 담기는 필드 이름 — 이 필드만 훑는다. 숫자·문장은 건드리지 않는다 */
+const STATUS_FIELDS = new Set(['tie', 'judgement', 'state', 'status', 'resultStatus', 'severity'])
+
+const walk = (v, map) => {
+  if (Array.isArray(v)) return v.map(x => walk(x, map))
+  if (v && typeof v === 'object') {
+    const out = {}
+    for (const [k, val] of Object.entries(v))
+      out[k] = STATUS_FIELDS.has(k) && typeof val === 'string' ? map(val)
+        : (val && typeof val === 'object' ? walk(val, map) : val)
+    return out
+  }
+  return v
+}
+
+/** 서버 응답을 화면 표시값으로. 목(한글)에는 아무 일도 일어나지 않는다 */
+export const fromServer = body => walk(body, toLabel)
+
+/** 화면이 고른 필터·정렬을 서버로 보낼 값으로. 배열 필터도 함께 바꾼다 */
+export const toServer = (query = {}) => {
+  const out = {}
+  for (const [k, v] of Object.entries(query))
+    out[k] = STATUS_FIELDS.has(k) || Array.isArray(v)
+      ? (Array.isArray(v) ? v.map(toCode) : toCode(v))
+      : v
+  return out
+}

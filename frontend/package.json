@@ -11,7 +11,8 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
-    "api:status": "node scripts/api-status.mjs"
+    "api:status": "node scripts/api-status.mjs",
+    "api:verify": "vite build --ssr scripts/api-verify.mjs --outDir node_modules/.api-verify --logLevel error && node node_modules/.api-verify/api-verify.js"
   },
   "dependencies": {
     "pinia": "^4.0.2",

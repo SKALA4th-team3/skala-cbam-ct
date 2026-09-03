@@ -3,28 +3,35 @@
    각 함수는 명세의 엔드포인트 하나와 1:1 이고, 그 경로를 request() 의 첫 인자로 들고 있다.
    BE 가 붙으면 여기 본문만 fetch 로 갈아끼운다. 화면 코드는 건드릴 일이 없다.
 
-   ⚠️ 목이 쓰는 상태값은 한글(협력유지중·적격·미제출 …)이고 명세는 영문 enum
-      (ACTIVE·QUALIFIED·NOT_SUBMITTED …)이다. 실서버를 붙일 때 이 파일에서 변환한다 — enums.js 참고. */
+   상태값은 서버가 영문 enum(ACTIVE·QUALIFIED·NOT_SUBMITTED …), 화면이 한글(협력유지중·적격·미제출 …)이다.
+   ADR-0004 로 정했다 — 매핑표는 enums.js, 응답 변환은 client.js 의 request() 한 곳,
+   서버로 보내는 필터·정렬은 각 엔드포인트가 toServer() 로 바꿔 보낸다. */
 import { request, page, startTask, getTask, ApiError } from './client'
+import { toServer, toCode } from './enums'
 import { suppliers, parts } from '@/mocks/seed'
 import { PRODUCTS, EMISSIONS, INBOX, SUBMISSION, SUBMISSIONS, QUEUE, DEADLINES, REMINDERS, DISPATCH, TONES } from './fixtures'
 
 const clone = v => JSON.parse(JSON.stringify(v))
 let SUP = clone(suppliers)
 let PRT = clone(parts)
-const SEV = { 미제출: 0, 부적격: 1, 적격: 2 }
 
 /* ── 협력업체 (명세 №1~4) ───────────────────────────────── */
 export const Suppliers = {
-  /** №3 GET /suppliers?search&country&status&submissionStatus&months&page&size&sort */
+  /** №3 GET /suppliers?search&country&status&submissionStatus&months&page&size&sort
+      필터·정렬은 서버로 영문 enum 과 명세의 sort 키로 나간다 (ADR-0004).
+      기본 정렬은 `companyName` — 요구사항 4번의 미결 항목을 ADR-0006 으로 닫았다.
+      화면이 「심각도 높은 순」을 기본으로 쓰던 것은 명세가 허용하지 않는 키였다. */
   list: (q = {}) => request('GET /suppliers', () => {
+    const query = toServer(q)                       // 한글 라벨 → enum. 실서버도 이 값을 받는다
     let rows = SUP
-    if (q.q) rows = rows.filter(s => s.name.toLowerCase().includes(q.q.toLowerCase()))
+    if (query.q) rows = rows.filter(s => s.name.toLowerCase().includes(query.q.toLowerCase()))
     for (const k of ['country', 'tie', 'judgement'])
-      if (q[k]?.length) rows = rows.filter(s => q[k].includes(s[k]))
-    if (q.sort === '업체명순') rows = [...rows].sort((a, b) => a.name.localeCompare(b.name))
-    else rows = [...rows].sort((a, b) => SEV[a.judgement] - SEV[b.judgement])
-    return page(rows, q)
+      if (query[k]?.length) rows = rows.filter(s => query[k].includes(toCode(s[k])))
+    /* 명세가 허용하는 sort 키는 companyName · lastSubmittedAt 둘뿐이다.
+       lastSubmittedAt 은 목 데이터에 그 필드가 없어 정렬하지 않는다 — 없는 값을 지어내지 않는다. */
+    if ((query.sort ?? 'companyName') === 'companyName')
+      rows = [...rows].sort((a, b) => a.name.localeCompare(b.name))
+    return page(rows, query)
   }),
   /** №4 GET /suppliers/{supplierId} */
   get: id => request('GET /suppliers/{supplierId}', () => {
@@ -147,7 +154,8 @@ export const Feedback = {
     submissionId, style: tone, body: TONES[tone], version: 1, source: 'AI', status: 'DRAFT',
   })),
   /** №31 GET /suppliers/{supplierId}/feedback-histories?type&status&from&to
-      ⚠️ 명세는 협력업체별 조회만 정의한다. 지금 화면은 전체 발송 목록을 보여준다 — 팀 확인 필요 */
+      ⚠️ 명세는 협력업체별 조회만 정의한다. 지금 화면은 전체 발송 목록을 보여준다.
+         전체 조회 경로를 추가할지 화면을 협력업체 상세로 옮길지 아직 답이 없다 — 이슈 #13. */
   list: () => request('GET /suppliers/{supplierId}/feedback-histories', () => page(DISPATCH, { size: 100 })),
   /** №29 PATCH /feedback-drafts/{draftId} { status: 'READY_TO_SEND' } — 확정 */
   confirm: id => request('PATCH /feedback-drafts/{draftId}', () => ({

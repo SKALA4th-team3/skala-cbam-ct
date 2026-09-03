@@ -2,10 +2,15 @@
    지금은 BE 가 없어 전부 목이다. 목이라는 사실을 숨기지 않기 위해
    모든 호출이 자기 엔드포인트를 문자열로 들고 이 파일을 지나간다.
 
+   모든 응답이 request() 한 곳을 지나가므로 상태값 변환(영문 enum → 한글)도 여기서 한다 — ADR-0004.
+   매핑표는 api/enums.js 에 있다. 목(한글)은 그대로 통과한다.
+
    BE 가 붙으면 두 가지만 한다.
    1) api/index.js 의 해당 호출에 세 번째 인자(real)를 채운다
    2) .env 의 VITE_REAL_API 에 그 엔드포인트를 넣는다
    화면 코드는 건드리지 않는다. */
+
+import { fromServer } from './enums'
 
 const LATENCY = [120, 320]          // 목이라는 걸 잊지 않게 일부러 조금 늦춘다
 const rand = (a, b) => a + Math.random() * (b - a)
@@ -47,16 +52,18 @@ export class ApiError extends Error {
  * @param endpoint 'GET /suppliers' — 실제 경로. 주석이 아니라 값이라 세고 검사할 수 있다
  * @param handler  목 구현
  * @param real     실서버 구현. BE 가 나오면 채운다. 없으면 목으로 간다
+ *
+ * 응답은 목이든 실서버든 fromServer() 를 통과한다. 화면은 언제나 한글 상태값을 본다.
  */
 export async function request(endpoint, handler, real) {
   if (REAL.has(endpoint)) {
     if (!real) throw new Error(`VITE_REAL_API 에 ${endpoint} 가 있는데 실서버 구현이 없다`)
     mark(endpoint, 'real')
-    return real(BASE)
+    return fromServer(await real(BASE))
   }
   mark(endpoint, 'mock')
   await sleep(rand(...LATENCY))
-  return handler()
+  return fromServer(handler())
 }
 
 /** 목록 응답 공통 봉투 — API 명세서 v10 규약 4항.
