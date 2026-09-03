@@ -9,6 +9,12 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import lombok.Getter;
 
+/**
+ * 엔티티의 생성일과 수정일을 공통으로 관리하는 기반 클래스.
+ *
+ * <p>참고: {@code Supplier}는 자체 생성일·수정일 필드와 생명주기 콜백을 사용하고 있어
+ * 현재 이 클래스를 상속하지 않는다.
+ */
 @Getter
 @MappedSuperclass
 public abstract class BaseTimeEntity {
