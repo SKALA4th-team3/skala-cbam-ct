@@ -1,0 +1,58 @@
+<script setup>
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { suppliers as SEED } from '@/mocks/seed'
+import { useTable } from '@/composables/useTable'
+import DataToolbar from '@/components/DataToolbar.vue'
+import ViewHead from '@/components/ViewHead.vue'
+import SubmissionStrip from '@/components/SubmissionStrip.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
+import EmptyState from '@/components/EmptyState.vue'
+
+const router = useRouter()
+const rows = ref([])
+onMounted(() => { rows.value = SEED })
+
+const SEV = { 미제출: 0, 부적격: 1, 적격: 2 }
+const facets = [
+  { key: 'country', label: '국가', field: 'country' },
+  { key: 'tie', label: '거래 상태', field: 'tie' },
+  { key: 'judgement', label: '판정 결과', field: 'judgement' },
+]
+const sorts = [
+  { key: 'sev', label: '심각도 높은 순', fn: (a, b) => SEV[a.judgement] - SEV[b.judgement] },
+  { key: 'name', label: '업체명순', fn: (a, b) => a.name.localeCompare(b.name) },
+]
+const t = useTable(rows, { search: 'name', facets, sorts })
+</script>
+
+<template>
+  <ViewHead kicker="대한민국 · 경남 · 경북 · 전남">
+    <template #title>협력사 {{ rows.length }}곳</template>
+    <template #lede>철강 32 · 알루미늄 11 · 기타 5 · 이번 달 마감 2026-09-30</template>
+    <template #acts>
+      <button class="quiet" @click="router.push('/suppliers/new')">
+        <svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>협력사 등록
+      </button>
+    </template>
+  </ViewHead>
+
+  <DataToolbar :table="t" :facets="facets" :sorts="sorts" placeholder="협력업체명 검색" unit="곳" />
+
+  <div class="list stage" style="--d:180ms">
+    <div v-for="s in t.filtered.value" :key="s.id" class="row link" @click="router.push(`/suppliers/${s.id}`)">
+      <div class="n"><b>{{ s.name }}</b><span>{{ s.city }} · {{ s.item }}</span></div>
+      <SubmissionStrip :pattern="s.strip" />
+      <StatusBadge :value="s.judgement" />
+    </div>
+    <EmptyState v-if="!t.filtered.value.length"
+      title="조건에 맞는 항목이 없습니다."
+      note="데이터가 없는 게 아니라 필터에 걸린 것이 없다는 뜻입니다."
+      action="필터 해제" @action="t.clearAll()" />
+  </div>
+
+  <div class="after">
+    <span class="legend"><i></i>부적격 <i class="s2"></i>미제출 · 최근 12개월</span>
+  </div>
+  <div class="spacer"></div>
+</template>
