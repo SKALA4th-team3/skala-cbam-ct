@@ -16,7 +16,7 @@ Jira 이슈를 어떻게 등록하고 관리하는지는 [`JIRA_CONVENTION.md`](
 | --- | --- | --- | --- |
 | 배포 브랜치 | `master` | **`main`** | GitHub 기본 브랜치가 `main`이다. **이름만 다르고 흐름은 원문 그대로다** |
 | 도메인 | `be` · `fe` · `ai` | **`be` · `fe`** | AI 호출도 Spring Boot 안에서 일어난다. 커밋 접두어도 `[BE]`·`[FE]` 둘만 쓴다 |
-| 브랜치 `{feature}` | 자유 | **`f24-` 처럼 F 번호를 앞에** | 기능 53개를 5명이 나눠 든다. `git branch -a` 만 봐도 누가 어느 F를 잡고 있는지 보여야 겹치지 않는다 |
+| 브랜치 `{feature}` | 자유 | **`24-` 처럼 번호를 앞에** | 기능 53개를 5명이 나눠 든다. `git branch -a` 만 봐도 누가 어느 번호를 잡고 있는지 보여야 겹치지 않는다 |
 
 ---
 
@@ -29,16 +29,16 @@ Jira 이슈를 어떻게 등록하고 관리하는지는 [`JIRA_CONVENTION.md`](
 ```
 
 ```
-feat/be/f24-unit-normalize
-feat/fe/f29-review-list
-fix/be/f18-message-id-dedupe
+feat/be/24-unit-normalize
+feat/fe/29-review-list
+fix/be/18-message-id-dedupe
 ```
 
 | 자리 | 값 |
 | --- | --- |
 | `{type}` | 커밋 Type을 **소문자로** — `feat` `fix` `docs` `chore` `refactor` `test` … |
 | `{domain}` | **`be` 또는 `fe`** |
-| `{feature}` | **F 번호를 앞에 붙이고** 작업 기능명을 간결하게 |
+| `{feature}` | **요구사항 번호를 앞에 붙이고** 작업 기능명을 간결하게 |
 
 **소문자 케밥케이스만 쓴다.**
 
@@ -72,10 +72,10 @@ fix/be/f18-message-id-dedupe
 ### 형식
 
 ```
-[BE] Feat: CBAM-12 F-24 추출값을 표준 단위로 변환한다
+[BE] Feat: CBAM-12 24번 추출값을 표준 단위로 변환한다
 
 - kg → ton, 원본 값을 raw_value 로 함께 보존
-- 변환 불가 시 값을 비우고 conversion_note 에 사유 기록 (F-24)
+- 변환 불가 시 값을 비우고 conversion_note 에 사유 기록 (24번)
 ```
 
 | 자리 | |
@@ -83,11 +83,11 @@ fix/be/f18-message-id-dedupe
 | `[BE]` `[FE]` | 담당 영역 |
 | `Feat:` | 아래 Type 표 |
 | `CBAM-12` | **Jira 이슈 키.** 이게 있어야 Jira ↔ GitHub 연동이 동작한다 |
-| `F-24` | **요구사항 ID.** 원문 형식의 「요구사항ID」 자리다 |
+| `24번` | **요구사항 ID.** 원문 형식의 「요구사항ID」 자리다 |
 | 대제목 | 간결하게 |
 | 본문 | **반드시 줄바꿈하여** 항목별로. **왜 / 무엇을 / 어떻게** |
 
-**Jira 키와 F 번호 둘 다 넣는다.** 키는 보드와 잇고, F 번호는 명세와 잇는다 — 하나만으로는 나중에 무엇을 왜 만들었는지 추적할 수 없다.
+**Jira 키와 요구사항 번호 둘 다 넣는다.** 키는 보드와 잇고, 요구사항 번호는 명세와 잇는다 — 하나만으로는 나중에 무엇을 왜 만들었는지 추적할 수 없다.
 
 ### Type
 
@@ -118,7 +118,7 @@ fix/be/f18-message-id-dedupe
 **커밋 제목과 같은 형식을 쓴다.**
 
 ```
-[BE] Feat: CBAM-12 F-24 추출값을 표준 단위로 변환한다
+[BE] Feat: CBAM-12 24번 추출값을 표준 단위로 변환한다
 ```
 
 제목만 보고도 **무엇을 했는지 알 수 있게** 쓴다.

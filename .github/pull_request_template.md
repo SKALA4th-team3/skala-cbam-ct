@@ -8,9 +8,10 @@
 
 ## 🔗 구현한 요구사항
 
-<!-- docs/product/REQUIREMENTS.md 의 F 번호. 못 찾겠으면 그것부터 팀에 묻는다 -->
+<!-- docs/product/REQUIREMENTS.md 의 번호와 기능명. 예) 24번 단위/형식 표준화
+     못 찾겠으면 그것부터 팀에 묻는다 -->
 
-- F-
+- 
 
 ## 📎 Issue 번호
 
