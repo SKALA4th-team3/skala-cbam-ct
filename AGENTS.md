@@ -154,7 +154,7 @@ diff AGENTS.md CLAUDE.md && echo OK
 | --- | --- |
 | 브랜치 | `CBAM-43` — **Jira 이슈 키 하나.** Jira 이슈 화면의 「브랜치 만들기」로 만들고, 원본 브랜치는 `dev` |
 | 커밋 | `[BE] Feat: CBAM-12 24번 대제목` |
-| 흐름 | `feature/*` → `dev` → `main` — **PR은 `dev`로 낸다** |
+| 흐름 | `CBAM-43` → `dev` → `main` — **PR은 `dev`로 낸다** |
 | Jira | Epic → Task → Subtask · `할 일` → `진행 중` → `완료` · 보드 `CBAM` |
 
 ### 커밋에 요구사항 번호를 넣는다
