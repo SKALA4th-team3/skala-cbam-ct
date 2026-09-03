@@ -178,6 +178,7 @@ diff AGENTS.md CLAUDE.md && echo OK
 - **비밀값을 커밋하지 않는다.** 메일 계정 비밀번호·AI API 키·DB 접속정보는 `.env`, 저장소에는 `.env.example`만
 - **`main` · `dev` 에 직접 push 하지 않는다** — PR은 `dev`로 낸다
 - force push·이력 재작성을 하지 않는다
+- ⚠️ **위 둘은 GitHub 이 막아 주지 않는다.** 플랜 제약으로 브랜치 보호를 걸 수 없다 — [`GIT_CONVENTION.md`](docs/GIT_CONVENTION.md) 참고. **실수하면 그대로 들어간다**
 - 남의 커밋을 임의로 되돌리지 않는다
 
 **이 프로젝트는 메일함 접속 정보와 AI API 키를 다룬다.** 한 번 새어 나간 값은 커밋을 지워도 이력에 남고, 그것을 수습할 시간이 없다.
