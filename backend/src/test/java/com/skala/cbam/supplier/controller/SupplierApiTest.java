@@ -458,6 +458,23 @@ class SupplierApiTest {
                 .andExpect(status().isMethodNotAllowed());
     }
 
+    @Test
+    @DisplayName("지원하지 않는 미디어 타입은 415 로 남는다 (500 으로 바꾸지 않는다)")
+    void keepsUnsupportedMediaType() throws Exception {
+        mockMvc.perform(post(BASE)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not-json"))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
+    @DisplayName("전역 예외 처리기가 있어도 OpenAPI 문서를 생성한다")
+    void servesOpenApiDocumentWithGlobalExceptionHandler() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openapi").value("3.1.0"));
+    }
+
     // ────────────────────────────── 헬퍼 ──────────────────────────────
 
     private long createSupplier(String companyName, String businessNumber, String country, String email)
