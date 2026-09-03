@@ -14,8 +14,35 @@ import java.util.List;
 
 public interface AlertRepository extends JpaRepository<Alert, Long> {
 
-    /** 24행 severity 블록 집계용 — "지금 열려 있는" 경보만 심각도별로 센다 (가정: status=OPEN 만 집계) */
-    List<Alert> findAllByReportingMonthAndStatus(LocalDate reportingMonth, AlertStatus status);
+    /**
+     * 협력 끊김 업체의 <b>미제출</b> 경보를 걸러내는 조건 (요구사항 6번).
+     *
+     * <p>미제출 경보는 submission 이 없고 part_supplier 만 있는 행이다(Alert 주석 참고).
+     * 판정 경보(submission 이 있는 행)는 제외하지 않는다 — 6번은 같은 문장에서
+     * 「기존 제출 데이터는 삭제하지 않고 보존한다」고 하므로, 이미 낸 제출에 붙은 경보까지
+     * 숨기면 보존한 데이터를 화면에서 잃는다.
+     *
+     * <p>s 가 null 인 경우(part_supplier 도 submission 도 없는 행)는 걸러내지 않는다 —
+     * 있어선 안 되는 행을 조용히 감추면 원인을 못 찾는다.
+     */
+    String NOT_INACTIVE_SUPPLIER_UNSUBMITTED =
+            " and (a.submission is not null or s is null"
+            + " or s.status = com.skala.cbam.supplier.domain.SupplierStatus.ACTIVE) ";
+
+    /**
+     * 24행 severity 블록 집계용 — "지금 열려 있는" 경보만 심각도별로 센다 (가정: status=OPEN 만 집계).
+     *
+     * <p>목록(search)과 같은 6번 필터를 건다. 두 곳이 어긋나면 severity 합계와 목록 건수가 달라진다.
+     */
+    @Query("""
+        select a from Alert a
+        left join a.partSupplier ps
+        left join ps.supplier s
+        where a.reportingMonth = :reportingMonth
+          and a.status = :status
+        """ + NOT_INACTIVE_SUPPLIER_UNSUBMITTED)
+    List<Alert> findAllByReportingMonthAndStatus(@Param("reportingMonth") LocalDate reportingMonth,
+                                                 @Param("status") AlertStatus status);
 
     /**
      * 25번(경보 조회). 기본 정렬은 심각도 우선순위(HIGH → MEDIUM → LOW).
@@ -34,6 +61,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
         where a.reportingMonth = :month
           and (:severity is null or a.severity = :severity)
           and (:ruleId is null or a.ruleId = :ruleId)
+        """ + NOT_INACTIVE_SUPPLIER_UNSUBMITTED + """
         order by case a.severity when com.skala.cbam.dashboard.entity.SeverityCode.HIGH then 0
                                   when com.skala.cbam.dashboard.entity.SeverityCode.MEDIUM then 1
                                   else 2 end asc,
@@ -41,10 +69,12 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
         """,
         countQuery = """
         select count(a) from Alert a
+        left join a.partSupplier ps
+        left join ps.supplier s
         where a.reportingMonth = :month
           and (:severity is null or a.severity = :severity)
           and (:ruleId is null or a.ruleId = :ruleId)
-        """)
+        """ + NOT_INACTIVE_SUPPLIER_UNSUBMITTED)
     Page<Alert> search(@Param("month") LocalDate month,
                         @Param("severity") SeverityCode severity,
                         @Param("ruleId") String ruleId,

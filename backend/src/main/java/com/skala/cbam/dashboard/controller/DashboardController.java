@@ -1,5 +1,7 @@
 package com.skala.cbam.dashboard.controller;
 
+import com.skala.cbam.common.exception.BusinessException;
+import com.skala.cbam.common.exception.ErrorCode;
 import com.skala.cbam.dashboard.dto.DashboardAlertsResponse;
 import com.skala.cbam.dashboard.dto.DashboardResponse;
 import com.skala.cbam.dashboard.dto.DashboardStatus;
@@ -8,8 +10,11 @@ import com.skala.cbam.dashboard.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
 
 /**
  * CBAM-73 하위 CBAM-74·75·76 (38·39·40번).
@@ -30,6 +37,7 @@ import java.time.YearMonth;
 @RestController
 @RequestMapping("/api/v1/dashboard")
 @RequiredArgsConstructor
+@Validated
 public class DashboardController {
 
     private final DashboardService dashboardService;
@@ -61,14 +69,34 @@ public class DashboardController {
             @RequestParam(required = false) SeverityCode severity,
             @Parameter(description = "R1~R7")
             @RequestParam(required = false) String ruleId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "0")
+            @Min(value = 0, message = "page 는 0 이상이어야 합니다") int page,
+            @RequestParam(defaultValue = "20")
+            @Min(value = 1, message = "size 는 1 이상이어야 합니다")
+            @Max(value = 100, message = "size 는 100 이하여야 합니다") int size
     ) {
         YearMonth targetMonth = parseMonth(month);
         return ResponseEntity.ok(dashboardService.getAlerts(targetMonth, severity, ruleId, page, size));
     }
 
+    /**
+     * YYYY-MM 파싱. 값이 없으면 현재월이 기본값이다(40번 「현재 달을 기본값으로」).
+     *
+     * <p>YearMonth.parse 의 DateTimeParseException 을 그대로 두면 500 이 나간다.
+     * 40번은 FE 가 월을 계속 바꿔 보는 화면이라, 잘못된 입력에 500 을 주면
+     * FE 는 「서버가 죽었다」와 구분할 수 없다. 400 INVALID_PARAMETER 로 바꾼다(공통 규약 3항).
+     */
     private YearMonth parseMonth(String month) {
-        return (month == null || month.isBlank()) ? YearMonth.now() : YearMonth.parse(month);
+        if (month == null || month.isBlank()) {
+            return YearMonth.now();
+        }
+        try {
+            return YearMonth.parse(month);
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, Map.of(
+                    "parameter", "month",
+                    "rejectedValue", month,
+                    "expected", "YYYY-MM"));
+        }
     }
 }

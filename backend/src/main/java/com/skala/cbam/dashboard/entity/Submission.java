@@ -1,6 +1,7 @@
 package com.skala.cbam.dashboard.entity;
 
 import com.skala.cbam.global.entity.BaseTimeEntity;
+import com.skala.cbam.supplier.domain.Supplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,6 +26,8 @@ import java.time.LocalDateTime;
  * ERD submission 테이블의 대시보드(38·39·40번) 집계용 읽기 전용 투영.
  * 실제 제출 데이터 작성/조회(20~23번) 담당이 submission 패키지에 전체 필드를 가진
  * 정식 엔티티를 만들 것이다 — 합칠 때 정리 필요 (슬랙 공지함).
+ *
+ * <p>supplier 는 협력업체 도메인의 정식 엔티티를 참조한다 — PartSupplier 주석 참고.
  *
  * status(처리 상태) 와 judgement(판정 결과) 는 다른 축이다 — API 명세 20행 비고 참고.
  */

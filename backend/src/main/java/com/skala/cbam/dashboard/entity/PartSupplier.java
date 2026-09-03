@@ -1,6 +1,7 @@
 package com.skala.cbam.dashboard.entity;
 
 import com.skala.cbam.global.entity.BaseTimeEntity;
+import com.skala.cbam.supplier.domain.Supplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,6 +21,13 @@ import lombok.NoArgsConstructor;
 
 /**
  * ERD part_supplier 교차 엔티티. 경보(alert)의 target(supplierId · partId) 계산에 쓴다.
+ *
+ * <p>supplier 는 {@link com.skala.cbam.supplier.domain.Supplier}(협력업체 도메인의 정식 엔티티)를
+ * 그대로 참조한다. 대시보드용 사본을 따로 두면 같은 supplier 테이블을 두 엔티티가 매핑해
+ * Spring Data 가 빈 이름 supplierRepository 를 두고 충돌한다(컨텍스트 자체가 안 뜬다).
+ *
+ * <p>⚠️ part · part_supplier 의 소유 도메인은 아직 팀 미결정이다. 부품(7~10번) 쪽에도
+ * 같은 테이블을 보는 매핑이 있어 합치기 전에 소유자를 정해야 한다.
  */
 @Entity
 @Table(name = "part_supplier")

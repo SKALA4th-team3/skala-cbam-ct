@@ -11,33 +11,44 @@ import com.skala.cbam.dashboard.entity.PartSupplier;
 import com.skala.cbam.dashboard.entity.SeverityCode;
 import com.skala.cbam.dashboard.entity.Submission;
 import com.skala.cbam.dashboard.entity.SubmissionStatus;
-import com.skala.cbam.dashboard.entity.Supplier;
 import com.skala.cbam.dashboard.repository.AlertRepository;
 import com.skala.cbam.dashboard.repository.PartRepository;
 import com.skala.cbam.dashboard.repository.PartSupplierRepository;
 import com.skala.cbam.dashboard.repository.SubmissionRepository;
-import com.skala.cbam.dashboard.repository.SupplierRepository;
 import com.skala.cbam.dashboard.service.DashboardService;
+import com.skala.cbam.supplier.domain.Supplier;
+import com.skala.cbam.supplier.repository.SupplierRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * CBAM-73 (38·39·40번) 이 실제로 DB에서 읽어와 맞는 값을 돌려주는지 확인한다.
  * "돌아간다고 맞는 게 아니다" — 시드 데이터를 넣고 응답 숫자까지 검증한다.
  *
- * MockMvc 관련 모듈(spring-boot-webmvc-test-autoconfigure)이 지금 build.gradle의
- * 테스트 스타터 구성에서 안 잡혀서, HTTP 계층 대신 서비스 레이어를 직접 호출한다.
- * 컨트롤러는 파라미터를 그대로 서비스에 넘기기만 하는 얇은 계층이라 위험은 낮다고 봤다.
+ * <p><b>@Transactional 로 롤백한다.</b> 예전에는 @BeforeEach 에서 deleteAll() 로 청소했는데,
+ * dev 프로필의 H2(jdbc:h2:mem:cbam;DB_CLOSE_DELAY=-1)는 같은 JVM 안에서 공유돼
+ * 같은 컨텍스트에 올라온 남의 테스트(SupplierApiTest 등) 시드까지 지웠다.
+ * 실행 순서에 따라 결과가 달라지는 테스트는 없느니만 못하다.
  */
 @SpringBootTest
+@Transactional
+@DisplayName("대시보드 API")
 class DashboardApiTest {
 
     @Autowired
@@ -52,25 +63,22 @@ class DashboardApiTest {
     private SubmissionRepository submissionRepository;
     @Autowired
     private AlertRepository alertRepository;
+    @Autowired
+    private WebApplicationContext context;
 
     private static final LocalDate REPORTING_MONTH = LocalDate.of(2026, 9, 1);
     private static final YearMonth MONTH = YearMonth.of(2026, 9);
 
+    private MockMvc mockMvc;
     private Supplier seongjin;
     private Part part2;
 
     @BeforeEach
     void seed() {
-        alertRepository.deleteAll();
-        submissionRepository.deleteAll();
-        partSupplierRepository.deleteAll();
-        partRepository.deleteAll();
-        supplierRepository.deleteAll();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
 
-        Supplier daehan = supplierRepository.save(
-                Supplier.builder().name("대한금속").status(LifecycleStatus.ACTIVE).build());
-        seongjin = supplierRepository.save(
-                Supplier.builder().name("성진스틸").status(LifecycleStatus.ACTIVE).build());
+        Supplier daehan = supplierRepository.save(supplier("대한금속", "111-11-11111", "kim@daehan.co.kr"));
+        seongjin = supplierRepository.save(supplier("성진스틸", "222-22-22222", "lee@seongjin.co.kr"));
 
         Part part1 = partRepository.save(Part.builder().name("열연강판").build());
         part2 = partRepository.save(Part.builder().name("봉강").build());
@@ -91,19 +99,12 @@ class DashboardApiTest {
                 .submittedAt(LocalDateTime.of(2026, 9, 2, 14, 20))
                 .build());
 
-        alertRepository.save(Alert.builder()
-                .partSupplier(target2)
-                .reportingMonth(REPORTING_MONTH)
-                .ruleId("R1")
-                .severity(SeverityCode.HIGH)
-                .message("마감 D-7 경과 미제출")
-                .status(AlertStatus.OPEN)
-                .validatedAt(LocalDateTime.of(2026, 9, 3, 9, 0))
-                .build());
+        alertRepository.save(unsubmittedAlert(target2, "마감 D-7 경과 미제출"));
     }
 
     @Test
-    void 대시보드_조회는_target_기준으로_적격_미제출을_집계한다() {
+    @DisplayName("대시보드 조회는 target 기준으로 적격·미제출을 집계한다")
+    void aggregatesByTarget() {
         DashboardResponse response = dashboardService.getDashboard(MONTH, null);
 
         assertThat(response.month()).isEqualTo("2026-09");
@@ -117,7 +118,8 @@ class DashboardApiTest {
     }
 
     @Test
-    void 경보_조회는_미제출_대상의_협력업체명과_부품명을_함께_반환한다() {
+    @DisplayName("경보 조회는 미제출 대상의 협력업체명과 부품명을 함께 반환한다")
+    void returnsAlertTargetNames() {
         DashboardAlertsResponse response = dashboardService.getAlerts(MONTH, null, null, 0, 20);
 
         assertThat(response.content()).hasSize(1);
@@ -129,5 +131,107 @@ class DashboardApiTest {
         assertThat(alert.target().partId()).isEqualTo(part2.getId());
         assertThat(alert.supplierName()).isEqualTo("성진스틸");
         assertThat(alert.partName()).isEqualTo("봉강");
+    }
+
+    // ── 요구사항 6번: 협력 끊김 업체는 마감 대상·미제출 경보에서 제외된다 (막는 쪽) ──
+
+    @Test
+    @DisplayName("협력 끊김 업체는 part_supplier 가 ACTIVE 여도 마감 대상 모수에서 빠진다")
+    void excludesInactiveSupplierFromTargets() {
+        seedInactiveSupplierWithActiveTarget();
+
+        DashboardResponse response = dashboardService.getDashboard(MONTH, null);
+
+        // 끊긴 업체를 세면 total 3 · notSubmitted 2 가 된다. 6번은 「제외된다」로 못 박은 쪽이다.
+        assertThat(response.counts().total()).isEqualTo(2);
+        assertThat(response.counts().notSubmitted()).isEqualTo(1);
+        assertThat(response.suppliers())
+                .extracting(DashboardResponse.SupplierSummary::companyName)
+                .doesNotContain("폐업금속");
+    }
+
+    @Test
+    @DisplayName("협력 끊김 업체의 미제출 경보는 목록과 심각도 집계 양쪽에서 빠진다")
+    void excludesInactiveSupplierFromUnsubmittedAlerts() {
+        seedInactiveSupplierWithActiveTarget();
+
+        DashboardAlertsResponse alerts = dashboardService.getAlerts(MONTH, null, null, 0, 20);
+        assertThat(alerts.totalElements()).isEqualTo(1);
+        assertThat(alerts.content())
+                .extracting(DashboardAlertsResponse.AlertItem::supplierName)
+                .doesNotContain("폐업금속");
+
+        // 목록에서 뺀 경보를 severity 합계에는 남겨 두면 두 숫자가 어긋난다.
+        assertThat(dashboardService.getDashboard(MONTH, null).severity().get("HIGH")).isEqualTo(1L);
+    }
+
+    // ── 잘못된 파라미터는 500 이 아니라 400 으로 막는다 (공통 규약 3항) ──
+
+    @Test
+    @DisplayName("month 형식이 틀리면 400 INVALID_PARAMETER 로 막는다")
+    void rejectsMalformedMonth() throws Exception {
+        for (String bad : new String[] {"abc", "2026-13", "2026/09"}) {
+            mockMvc.perform(get("/api/v1/dashboard").param("month", bad))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        }
+    }
+
+    @Test
+    @DisplayName("page·size 가 범위를 벗어나면 400 INVALID_PARAMETER 로 막는다")
+    void rejectsOutOfRangePaging() throws Exception {
+        mockMvc.perform(get("/api/v1/dashboard/alerts").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+
+        mockMvc.perform(get("/api/v1/dashboard/alerts").param("size", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+    }
+
+    @Test
+    @DisplayName("month 를 주지 않으면 현재월로 200 을 반환한다")
+    void defaultsToCurrentMonth() throws Exception {
+        mockMvc.perform(get("/api/v1/dashboard"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.month").value(YearMonth.now().toString()));
+    }
+
+    // ── 시드 보조 ──────────────────────────────────────────────────
+
+    /** 끊긴 업체 + ACTIVE 인 공급 관계 + 미제출 경보. supplier.status 와 part_supplier.status 는 다른 축이다. */
+    private void seedInactiveSupplierWithActiveTarget() {
+        Supplier closed = supplier("폐업금속", "333-33-33333", "park@closed.co.kr");
+        closed.deactivate("거래 종료");
+        closed = supplierRepository.save(closed);
+
+        Part part3 = partRepository.save(Part.builder().name("형강").build());
+        PartSupplier target3 = partSupplierRepository.save(
+                PartSupplier.builder().supplier(closed).part(part3).status(LifecycleStatus.ACTIVE).build());
+
+        alertRepository.save(unsubmittedAlert(target3, "끊긴 업체 미제출"));
+    }
+
+    private static Supplier supplier(String name, String businessNumber, String email) {
+        return Supplier.builder()
+                .businessRegistrationNumber(businessNumber)
+                .name(name)
+                .countryCode("KR")
+                .contactName("담당자")
+                .contactEmail(email)
+                .contactPhone("02-0000-0000")
+                .build();
+    }
+
+    private static Alert unsubmittedAlert(PartSupplier target, String message) {
+        return Alert.builder()
+                .partSupplier(target)
+                .reportingMonth(REPORTING_MONTH)
+                .ruleId("R1")
+                .severity(SeverityCode.HIGH)
+                .message(message)
+                .status(AlertStatus.OPEN)
+                .validatedAt(LocalDateTime.of(2026, 9, 3, 9, 0))
+                .build();
     }
 }
