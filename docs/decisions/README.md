@@ -41,6 +41,7 @@ docs/decisions/0001-ai-response-schema.md
 | --- | --- |
 | [ADR-0001](0001-outlier-threshold.md) | 이상치 판정을 ±30% 고정으로 한다 (34번 · R4) |
 | [ADR-0002](0002-project-scaffold.md) | 초기 구조 — backend/frontend 분리 · Gradle · JavaScript |
+| [ADR-0003](0003-branch-name-jira-key.md) | 브랜치 이름을 Jira 이슈 키 하나로 한다 (`CBAM-43`) |
 
 ## 앞으로 예상되는 것
 
