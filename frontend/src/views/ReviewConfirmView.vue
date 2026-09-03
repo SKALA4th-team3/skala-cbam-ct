@@ -47,13 +47,13 @@ async function confirm() {
     <template #lede>확정된 데이터만 대시보드 집계와 완제품 내재배출량 계산에 반영됩니다.</template>
   </ViewHead>
 
-  <div class="conv stage" style="--d:160ms">
-    <div class="ch"><span>협력사 원문 · rawText</span><span>표준 데이터</span></div>
-    <div v-for="r in sub?.rows ?? []" :key="r.field" class="cv"
+  <div class="pair stage" style="--d:160ms">
+    <div class="h"><span>협력사 원문 · rawText</span><span>표준 데이터</span></div>
+    <div v-for="r in sub?.rows ?? []" :key="r.field" class="pr2"
          :class="resolved.includes(r.field) ? 'complete' : r.tone">
       <div class="raw">{{ r.raw }}</div>
       <div class="std">
-        <span class="k">{{ r.field }}</span>
+        <span class="fld">{{ r.field }}</span>
         <div class="v">
           <b :class="{ nul: r.value === null && !resolved.includes(r.field) }">
             {{ resolved.includes(r.field) ? '4,120' : (r.value ?? 'null') }}
@@ -69,7 +69,7 @@ async function confirm() {
   </div>
 
   <ActionBar :title="blockers.length ? blockers.join(' · ') + ' — 확정 버튼이 잠깁니다.' : '확정하면 재산정이 돌고 걸려 있던 판정이 스스로 해소됩니다.'"
-             note="화면이 잠가도 서버가 다시 막습니다 (400 MISSING_FIELDS · 409 NOT_ELIGIBLE · 409 UNMAPPED_PARTS)">
+             note="화면이 잠가도 서버가 다시 막습니다 (400 NOT_QUALIFIED · 400 UNREGISTERED_PART_EXISTS)">
     <button class="quiet" @click="Review.reject(route.params.id, 'R2 필수 항목 누락').then(() => { ui.say('반려했습니다 · 사유를 저장했습니다'); router.push('/feedback') })">반려</button>
     <button class="btn" :disabled="blockers.length > 0" @click="confirm">확정하기</button>
   </ActionBar>

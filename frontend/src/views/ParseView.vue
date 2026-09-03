@@ -50,12 +50,12 @@ const canPass = computed(() => state.value === 'done')
     </div>
   </div>
 
-  <div class="conv stage" style="--d:200ms" :class="{ 'raw-only': rawOnly }">
-    <div class="ch"><span>협력사 원문 · rawText</span><span>표준 데이터</span></div>
-    <div v-for="r in sub?.rows ?? []" :key="r.field" class="cv" :class="r.tone">
+  <div class="pair stage" style="--d:200ms" :class="{ 'raw-only': rawOnly }">
+    <div class="h"><span>협력사 원문 · rawText</span><span>표준 데이터</span></div>
+    <div v-for="r in sub?.rows ?? []" :key="r.field" class="pr2" :class="r.tone">
       <div class="raw">{{ r.raw }}</div>
       <div class="std">
-        <span class="k">{{ r.field }}</span>
+        <span class="fld">{{ r.field }}</span>
         <div class="v">
           <b :class="{ nul: r.value === null }">{{ r.value ?? 'null' }}</b>
           <span v-if="r.unit" class="u">{{ r.unit }}</span>

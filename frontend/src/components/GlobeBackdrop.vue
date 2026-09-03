@@ -21,5 +21,7 @@ watch(() => route.name, apply)
 <template>
   <div id="bg" :class="{ deep: route.meta.globe?.deep }">
     <canvas ref="canvas" id="globe"></canvas>
+    <!-- 글자 뒤를 덮는 층. 없으면 구의 선이 본문을 관통해 읽기 어렵다 -->
+    <div class="vig"></div>
   </div>
 </template>
