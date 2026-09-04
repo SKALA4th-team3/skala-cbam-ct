@@ -1,4 +1,5 @@
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 /**
  * 목록 화면 공통 — 검색 + 패싯 필터 + 정렬.
@@ -10,14 +11,52 @@ import { ref, computed, reactive } from 'vue'
  * 반환값은 reactive 객체다 — ref 를 담은 plain object 를 돌려주면
  * 템플릿에서까지 `t.filtered.value` 를 써야 한다. 화면 코드에 `.value` 가 보이면 안 된다.
  *
+ * 검색·필터·정렬을 주소(query)에 싣는다 — `sync: true`.
+ * 스토어에만 두면 새로고침에 날아가고, 「미제출만 걸러 둔 목록」을 팀원에게 링크로 못 보낸다.
+ * push 가 아니라 replace 다 — 칩을 누를 때마다 방문 기록이 쌓이면 목록을 벗어나려고 뒤로가기를 여섯 번 누른다.
+ *
  * @param {import('vue').Ref<Array>} rows  전체 행
- * @param {{ search:string, facets:{key,label,field}[], sorts?:{key,fn}[] }} cfg
+ * @param {{ search:string, facets:{key,label,field}[], sorts?:{key,fn}[], sync?:boolean }} cfg
  */
 export function useTable(rows, cfg) {
   const q = ref('')
   const picked = ref({})                       // { 국가: ['대한민국'], ... }
   const sortKey = ref(cfg.sorts?.[0]?.key ?? null)
   const open = ref(null)
+
+  if (cfg.sync) {
+    const route = useRoute(), router = useRouter()
+    let syncing = false
+    const read = () => {
+      syncing = true
+      q.value = String(route.query.q ?? '')
+      const next = {}
+      for (const f of cfg.facets) {
+        const raw = route.query[f.key]
+        if (raw) next[f.key] = String(raw).split(',').filter(Boolean)
+      }
+      picked.value = next
+      if (route.query.sort) sortKey.value = String(route.query.sort)
+      nextTick(() => { syncing = false })
+    }
+    const write = () => {
+      if (syncing) return
+      const out = { ...route.query }
+      if (q.value.trim()) out.q = q.value.trim(); else delete out.q
+      for (const f of cfg.facets) {
+        const on = picked.value[f.key] ?? []
+        if (on.length) out[f.key] = on.join(','); else delete out[f.key]
+      }
+      const dflt = cfg.sorts?.[0]?.key ?? null
+      if (sortKey.value && sortKey.value !== dflt) out.sort = sortKey.value; else delete out.sort
+      if (JSON.stringify(out) === JSON.stringify(route.query)) return
+      router.replace({ query: out })
+    }
+    read()
+    watch([q, picked, sortKey], write, { deep: true })
+    /* 뒤로/앞으로 가면 주소가 진실이다 */
+    watch(() => route.query, (a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) read() })
+  }
 
   const counts = computed(() => {
     const out = {}

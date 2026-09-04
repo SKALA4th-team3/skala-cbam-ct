@@ -6,6 +6,8 @@
 | --- | --- |
 | [`REQUIREMENTS.md`](REQUIREMENTS.md) | 기능 53개 (1번 ~ 53번) |
 | [`API_SPEC_ERRATA.md`](API_SPEC_ERRATA.md) | **API 명세서 v10 정정표** — 내부 참조 번호가 이전 버전 기준으로 남아 있다. 원본(xlsx)은 저장소에 없다 |
+| [`AI_EXTENSION.md`](AI_EXTENSION.md) | **AI 확장 지점 2곳** — 어디에 넣고 어디에 안 넣는지. 흐름 위의 위치 |
+| [`prompts/`](prompts/) | 프롬프트 2개와 입출력 JSON 스키마. `cd frontend && npm run ai:verify` 가 센다 |
 
 ## 번호 체계
 

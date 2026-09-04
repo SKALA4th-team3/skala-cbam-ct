@@ -777,10 +777,11 @@ export const suppliers = [
   },
 ]
 
-/* 부품 24개. CN 코드는 요구사항 7번대로 8자리다 —
+/* 부품 24개. id 는 명세 10번·8번이 부품을 가리키는 키다. CN 코드는 요구사항 7번대로 8자리다 —
    원본이 HS6(`7207 11`)였어서 CN8 세분류 두 자리를 `00` 으로 채웠다. */
 export const parts = [
   {
+    "id": 1,
     "name": "슬래브",
     "cn": "7207 1100",
     "cnGroup": "72 철강",
@@ -789,6 +790,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 2,
     "name": "빌릿",
     "cn": "7207 1900",
     "cnGroup": "72 철강",
@@ -797,6 +799,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 3,
     "name": "열간압연 전력",
     "cn": "2716 0000",
     "cnGroup": "27 광물성 연료",
@@ -805,6 +808,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 4,
     "name": "아연도금 증기",
     "cn": "2711 2100",
     "cnGroup": "27 광물성 연료",
@@ -813,6 +817,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 5,
     "name": "산세 처리제",
     "cn": "2806 1000",
     "cnGroup": "28 무기화학품",
@@ -821,6 +826,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 6,
     "name": "포장재",
     "cn": "4819 1000",
     "cnGroup": "48 지류",
@@ -829,6 +835,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 7,
     "name": "열연코일",
     "cn": "7208 3900",
     "cnGroup": "72 철강",
@@ -837,6 +844,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 8,
     "name": "후판",
     "cn": "7208 5100",
     "cnGroup": "72 철강",
@@ -845,6 +853,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 9,
     "name": "선재",
     "cn": "7213 9100",
     "cnGroup": "72 철강",
@@ -853,6 +862,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 10,
     "name": "봉강",
     "cn": "7214 2000",
     "cnGroup": "72 철강",
@@ -861,6 +871,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 11,
     "name": "형강",
     "cn": "7216 3300",
     "cnGroup": "72 철강",
@@ -869,6 +880,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 12,
     "name": "냉연강판",
     "cn": "7209 1700",
     "cnGroup": "72 철강",
@@ -877,6 +889,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 13,
     "name": "아연도금강판",
     "cn": "7210 4900",
     "cnGroup": "72 철강",
@@ -885,6 +898,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 14,
     "name": "강관",
     "cn": "7306 3000",
     "cnGroup": "72 철강",
@@ -893,6 +907,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 15,
     "name": "앵글",
     "cn": "7216 2100",
     "cnGroup": "72 철강",
@@ -901,6 +916,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 16,
     "name": "황산",
     "cn": "2807 0000",
     "cnGroup": "28 무기화학품",
@@ -909,6 +925,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 17,
     "name": "암모니아",
     "cn": "2814 1000",
     "cnGroup": "28 무기화학품",
@@ -917,6 +934,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 18,
     "name": "가성소다",
     "cn": "2815 1100",
     "cnGroup": "28 무기화학품",
@@ -925,6 +943,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 19,
     "name": "라벨지",
     "cn": "4821 1000",
     "cnGroup": "48 지류",
@@ -933,6 +952,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 20,
     "name": "가열로 천연가스",
     "cn": "2711 2100",
     "cnGroup": "27 광물성 연료",
@@ -941,6 +961,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 21,
     "name": "코크스",
     "cn": "2704 0000",
     "cnGroup": "27 광물성 연료",
@@ -949,6 +970,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 22,
     "name": "압연 스팀",
     "cn": "2711 1100",
     "cnGroup": "27 광물성 연료",
@@ -957,6 +979,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 23,
     "name": "소성로 경유",
     "cn": "2710 1900",
     "cnGroup": "27 광물성 연료",
@@ -965,6 +988,7 @@ export const parts = [
     "unit": "tCO2e/t"
   },
   {
+    "id": 24,
     "name": "산소플랜트 전력",
     "cn": "2716 0000",
     "cnGroup": "27 광물성 연료",
