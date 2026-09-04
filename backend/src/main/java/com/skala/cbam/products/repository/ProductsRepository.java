@@ -1,5 +1,7 @@
 package com.skala.cbam.products.repository;
 
-public class ProductsRepository {
-    
+import com.skala.cbam.products.domain.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductsRepository extends JpaRepository<Product, Long> {
 }

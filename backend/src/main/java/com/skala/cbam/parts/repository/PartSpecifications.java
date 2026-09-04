@@ -1,6 +1,8 @@
 package com.skala.cbam.parts.repository;
 
 import com.skala.cbam.parts.entity.Part;
+import com.skala.cbam.parts.entity.PartSupplierStatus;
+import jakarta.persistence.criteria.JoinType;
 import org.springframework.data.jpa.domain.Specification;
 
 public final class PartSpecifications {
@@ -18,7 +20,11 @@ public final class PartSpecifications {
                 predicates = cb.and(predicates, cb.equal(root.get("cnCode"), cnCode));
             }
             if (supplierId != null) {
-                predicates = cb.and(predicates, cb.isMember(supplierId, root.get("supplierIds")));
+                var supplier = root.join("suppliers", JoinType.INNER);
+                predicates = cb.and(predicates,
+                        cb.equal(supplier.get("supplierId"), supplierId),
+                        cb.equal(supplier.get("status"), PartSupplierStatus.ACTIVE));
+                query.distinct(true);
             }
             return predicates;
         };

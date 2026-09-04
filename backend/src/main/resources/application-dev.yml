@@ -3,12 +3,9 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:h2:mem:cbam;DB_CLOSE_DELAY=-1
-    username: sa
-    password:
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/cbam}"
+    username: "${DB_USERNAME}"
+    password: "${DB_PASSWORD}"
   jpa:
     hibernate:
-      ddl-auto: update
-  h2:
-    console:
-      enabled: true
+      ddl-auto: validate
