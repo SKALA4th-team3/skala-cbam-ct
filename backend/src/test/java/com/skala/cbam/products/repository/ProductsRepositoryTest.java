@@ -26,7 +26,7 @@ class ProductsRepositoryTest {
     void Product를_저장하면_수출국과_구성부품도_함께_저장된다() {
         Part part = partsRepository.saveAndFlush(new Part(
                 "P-9101", "저장 테스트 부품", "72081000", PartUnit.TON,
-                new BigDecimal("1.0000"), Set.of(10L)));
+                new BigDecimal("1.0000"), null, Set.of(10L)));
         PartSupplier relation = part.getSuppliers().iterator().next();
 
         Product product = new Product("저장 테스트 제품", "87082990", new BigDecimal("200.00"));

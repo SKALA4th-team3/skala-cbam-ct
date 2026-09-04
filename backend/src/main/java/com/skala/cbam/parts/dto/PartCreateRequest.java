@@ -12,6 +12,7 @@ public record PartCreateRequest(
         @NotBlank String cnCode,
         @NotBlank String unit,
         @NotNull BigDecimal benchmarkFactor,
+        Integer benchmarkFactorYear,
         Set<@NotNull Long> supplierIds
 ) {
 }

@@ -62,7 +62,7 @@ class PartsServiceTest {
 
     private PartCreateRequest validRequest() {
         return new PartCreateRequest("P-0001", "열연강판", "72081000", "TON",
-                new BigDecimal("1.8500"), Set.of(1L));
+                new BigDecimal("1.8500"), 2026, Set.of(1L));
     }
 
     @Test
@@ -91,7 +91,7 @@ class PartsServiceTest {
     @Test
     void CN코드가_8자리_숫자가_아니면_INVALID_CN_CODE_예외를_던진다() {
         PartCreateRequest request = new PartCreateRequest("P-0001", "열연강판", "7208100",
-                "TON", new BigDecimal("1.85"), Set.of());
+                "TON", new BigDecimal("1.85"), 2026, Set.of());
 
         assertThatThrownBy(() -> partsService.create(request))
                 .isInstanceOf(PartBusinessException.class)
@@ -101,7 +101,7 @@ class PartsServiceTest {
     @Test
     void 허용되지_않은_단위이면_INVALID_UNIT_예외를_던진다() {
         PartCreateRequest request = new PartCreateRequest("P-0001", "열연강판", "72081000",
-                "LB", new BigDecimal("1.85"), Set.of());
+                "LB", new BigDecimal("1.85"), 2026, Set.of());
 
         assertThatThrownBy(() -> partsService.create(request))
                 .isInstanceOf(PartBusinessException.class)
@@ -111,7 +111,7 @@ class PartsServiceTest {
     @Test
     void benchmarkFactor가_음수이면_OUT_OF_RANGE_예외를_던진다() {
         PartCreateRequest request = new PartCreateRequest("P-0001", "열연강판", "72081000",
-                "TON", new BigDecimal("-1"), Set.of());
+                "TON", new BigDecimal("-1"), 2026, Set.of());
 
         assertThatThrownBy(() -> partsService.create(request))
                 .isInstanceOf(PartBusinessException.class)
@@ -139,7 +139,7 @@ class PartsServiceTest {
         when(supplierRepository.findAllById(anyIterable()))
                 .thenReturn(List.of(supplierWithId(1L, "대성금속")));
         PartCreateRequest request = new PartCreateRequest("P-0001", "열연강판", "72081000", "TON",
-                new BigDecimal("1.8500"), Set.of(1L, 99L));
+                new BigDecimal("1.8500"), 2026, Set.of(1L, 99L));
 
         assertThatThrownBy(() -> partsService.create(request))
                 .isInstanceOf(PartBusinessException.class)
@@ -153,10 +153,10 @@ class PartsServiceTest {
     @Test
     void 수정에서도_존재하지_않는_협력업체는_막는다() {
         when(partsRepository.findById(1L)).thenReturn(java.util.Optional.of(
-                new Part("P-0001", "열연강판", "72081000", PartUnit.TON, new BigDecimal("1.8500"), Set.of())));
+                new Part("P-0001", "열연강판", "72081000", PartUnit.TON, new BigDecimal("1.8500"), 2026, Set.of())));
         when(supplierRepository.findAllById(anyIterable())).thenReturn(List.of());
 
-        var request = new PartUpdateRequest(null, null, null, null, Set.of(99L));
+        var request = new PartUpdateRequest(null, null, null, null, null, Set.of(99L));
 
         assertThatThrownBy(() -> partsService.update(1L, request))
                 .isInstanceOf(PartBusinessException.class)
@@ -167,7 +167,7 @@ class PartsServiceTest {
     @Test
     void 상세_조회는_협력업체_이름을_채운다() {
         when(partsRepository.findById(1L)).thenReturn(java.util.Optional.of(
-                new Part("P-0001", "열연강판", "72081000", PartUnit.TON, new BigDecimal("1.8500"), Set.of(1L))));
+                new Part("P-0001", "열연강판", "72081000", PartUnit.TON, new BigDecimal("1.8500"), 2026, Set.of(1L))));
         when(supplierRepository.findAllById(anyIterable()))
                 .thenReturn(List.of(supplierWithId(1L, "대성금속")));
 

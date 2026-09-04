@@ -134,7 +134,7 @@ class MailAnalysisServiceTest {
 
         // 25번 — 등록 부품 목록을 프롬프트에 넣는다. 없으면 모델이 부품명을 지어낸다
         partsRepository.save(new Part("PT-ANALYSIS-1", "열연강판(분석테스트)", "72081000",
-                PartUnit.TON, new BigDecimal("1.8"), java.util.Set.of(supplier.getId())));
+                PartUnit.TON, new BigDecimal("1.8"), null, java.util.Set.of(supplier.getId())));
 
         receipt = mailReceiptRepository.save(MailReceipt.builder()
                 .messageId("<analysis-test-1@mail.example.com>")
