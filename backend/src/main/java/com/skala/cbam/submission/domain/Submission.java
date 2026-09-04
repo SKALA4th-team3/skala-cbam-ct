@@ -24,6 +24,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 부품별 월간 제출 데이터. API 명세 №20~№23, 요구사항 29~32번.
@@ -95,6 +97,7 @@ public class Submission {
 
     /** 확정 시점 스냅샷. factorFrozenAt 이 null 이 아니면 확정된 계산값이라는 뜻이다. */
     @Column(name = "applied_factor_year")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer appliedFactorYear;
 
     @Column(name = "factor_frozen_at")

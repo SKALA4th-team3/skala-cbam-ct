@@ -17,7 +17,20 @@
         · 관제 「손봐야 할 곳 N」 — 이미 열려 있는 탭을 다시 누른 것이라 바뀔 것이 없다
       이 다섯 말고 다른 것이 뜨면 진짜다. */
 import { chromium } from 'playwright-core'
+import { readFileSync } from 'node:fs'
 const BASE = 'http://localhost:5173'
+
+/* 이 검사는 **목 데이터 전용**이다. 픽스처의 이름(성진스틸·sub-7 …)을 그대로 찾기 때문에,
+   VITE_REAL_API 가 채워져 있으면 실서버 데이터가 와서 셀렉트 옵션을 못 찾고
+   30초 타임아웃으로 죽는다 — 원인이 안 보이는 실패라 미리 막는다. */
+try {
+  const env = readFileSync(new URL('../.env', import.meta.url), 'utf8')
+  const real = env.match(/^VITE_REAL_API=(.+)$/m)?.[1]?.trim()
+  if (real) {
+    console.error(`이 검사는 목 데이터 전용이다. .env 의 VITE_REAL_API 를 비우고 dev 서버를 다시 띄운다.\n  지금 값: ${real}`)
+    process.exit(2)
+  }
+} catch { /* .env 가 없으면 목 모드다 — 그대로 진행한다 */ }
 const b = await chromium.launch()
 const ctx = await b.newContext({ viewport: { width: 1440, height: 950 } })
 const page = await ctx.newPage()

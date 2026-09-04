@@ -9,6 +9,7 @@ import com.skala.cbam.submission.domain.UnregisteredPart;
 import com.skala.cbam.submission.domain.UnregisteredPartStatus;
 import com.skala.cbam.submission.repository.ExtractionFieldRepository;
 import com.skala.cbam.submission.repository.SubmissionRepository;
+import com.skala.cbam.submission.repository.SubmissionSpecifications;
 import com.skala.cbam.submission.repository.UnregisteredPartRepository;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -49,8 +50,8 @@ public class JpaSubmissionRelatedDataProvider implements SubmissionRelatedDataPr
     @Override
     public List<SubmissionInfo> findDraftableSubmissions(YearMonth reportingMonth) {
         // 43번 일괄 — 이번 달 부적격 건. 미제출(NOT_SUBMITTED)은 제출 행이 없어 여기 안 잡힌다
-        return submissionRepository.search(
-                        null, reportingMonth.atDay(1), null, Judgement.UNQUALIFIED, null, null, null)
+        return submissionRepository.findAll(SubmissionSpecifications.matches(
+                        null, reportingMonth.atDay(1), null, Judgement.UNQUALIFIED, null, null, null))
                 .stream()
                 .filter(s -> s.getStatus() != SubmissionStatus.CONFIRMED)
                 .map(this::toInfo)

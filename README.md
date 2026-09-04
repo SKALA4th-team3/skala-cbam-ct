@@ -36,7 +36,64 @@ cd backend && ./gradlew bootRun              # http://localhost:8080
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-개발·발표·운영 환경은 PostgreSQL을 사용한다. PostgreSQL 컨테이너가 빈 볼륨을 처음 만들 때 초기화 SQL을 실행하며, 테스트만 격리된 H2를 사용한다 — [ADR-0010](docs/decisions/0010-postgresql-development-and-init-sql.md).
+개발·발표·운영 환경은 PostgreSQL을 사용한다. PostgreSQL 컨테이너가 빈 볼륨을 처음 만들 때 초기화 SQL을 실행하며, 테스트만 격리된 H2를 사용한다 — [ADR-0011](docs/decisions/0011-postgresql-development-and-init-sql.md).
+
+### 막히면 여기부터 본다
+
+| 증상 | 원인 | |
+| --- | --- | --- |
+| `bind: address already in use` | 5432 를 이미 쓰고 있다 | `.env` 의 `DB_PORT` 와 `DB_URL` 을 같은 다른 포트로 바꾼다 |
+| 부팅이 `Schema validation` 으로 죽는다 | 엔티티와 `init_db.sql` 이 어긋났다 | 컬럼 이름·타입을 맞춘다. **`ddl-auto` 를 바꿔 덮지 않는다** |
+| 화면은 뜨는데 데이터가 목이다 | 그 엔드포인트가 `VITE_REAL_API` 에 없다 | 아래 「FE 와 BE 를 붙인다」 |
+| `docker compose up` 뒤에도 데이터가 없다 | 볼륨이 이미 있어 초기화 SQL 이 안 돈다 | `docker compose down -v` 로 볼륨째 지우고 다시 올린다 |
+
+## FE 와 BE 를 붙인다
+
+**FE 는 기본적으로 목으로 돈다.** BE 없이도 화면 전체가 뜬다. 실서버로 보낼 엔드포인트만
+`frontend/.env` 의 `VITE_REAL_API` 에 하나씩 넣는다 — 거기 없는 것은 목이다.
+
+```bash
+cd frontend
+cp .env.example .env       # VITE_REAL_API 에 실서버로 보낼 것을 적는다
+npm run dev                # /api 요청은 vite 가 VITE_BACKEND_ORIGIN 으로 넘긴다 (CORS 없음)
+
+npm run api:status         # 지금 무엇이 실서버이고 무엇이 목인지
+npm run api:real           # 실서버 계약 검사 — BE 가 8080 에 떠 있어야 한다
+```
+
+지금 실서버로 붙어 있는 것과, 아직 못 붙이는 것과 그 이유다.
+
+| 엔드포인트 | | |
+| --- | --- | --- |
+| `GET /suppliers` · `GET /suppliers/{id}` · `POST /suppliers` | ✅ 붙었다 | `npm run api:real` 16건 통과 |
+| `GET /tasks/{taskId}` | ✅ 붙었다 | 목과 실서버가 같은 모양이라 변환이 없다 |
+| `GET /dashboard` | ⛔ 못 붙인다 | 화면이 추세·할 일·접수 현황·완제품 합계를 읽는데 **BE 응답에 없다.** 붙이면 관제 화면이 빈다 |
+| `GET /mail-receipts` | ⛔ 못 붙인다 | 목록 응답에 `subject`·`body` 가 없다. 접수함이 제목을 못 그린다 |
+| `GET /parts` · `/products` · `/submissions` … | ⛔ 아직 | 필드 이름이 달라 `shapes.js` 에 변환이 필요하다 |
+
+**⛔ 는 「BE 가 틀렸다」가 아니라 「아직 안 맞춰 봤다」는 뜻이다.** 붙이는 순서는
+`shapes.js` 에 변환을 쓰고 → `api/index.js` 의 그 호출에 세 번째 인자(real)를 채우고 →
+`.env` 의 `VITE_REAL_API` 에 넣는다. 화면 코드는 건드리지 않는다.
+
+## AI 를 실제로 돌려 본다 (22~25번)
+
+`.env` 에 `AI_API_KEY` 를 채우고 BE 를 띄운 뒤, **미확인 접수 건을 협력업체에 연결**하면
+그 즉시 분석이 자동으로 돈다(요구사항 20번).
+
+```bash
+# 데모 데이터의 5006 번은 이걸 보려고 둔 건이다 — 본문에 등록 부품·미등록 부품·
+# 단위 없는 값이 일부러 섞여 있다
+curl -X PATCH localhost:8080/api/v1/mail-receipts/5006/supplier \
+     -H 'Content-Type: application/json' -H 'X-Operator-Id: demo' \
+     -d '{"supplierId":1001}'
+# → {"analyzeTaskId":"tsk-…"}
+
+curl localhost:8080/api/v1/tasks/tsk-…      # PENDING → COMPLETED (10초 안팎)
+# → resourceIds 에 만들어진 제출 데이터 id, unregisteredPartCount 에 미등록 부품 수
+```
+
+**키가 없어도 앱은 뜬다.** 그때 분석은 실패로, 피드백 초안은 46번의 기본 템플릿으로 간다 —
+[ADR-0013](docs/decisions/0013-ai-call-restclient-and-polling.md).
 
 ### PostgreSQL
 

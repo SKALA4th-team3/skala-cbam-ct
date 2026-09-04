@@ -48,7 +48,24 @@ INSERT INTO mail_receipt (
     (5002, NULL, '<demo-5002@example.test>', 'unknown01@example.test', '업체 확인이 필요한 배출자료', '등록되지 않은 발신자입니다.', 'UNMATCHED', NULL, NULL, NULL, NULL, CURRENT_TIMESTAMP - interval '1 day'),
     (5003, 1002, '<demo-5003@example.test>', 'supplier02@example.test', '알루미늄 배출자료', '단위 확인이 필요한 자료입니다.', 'ANALYZED', NULL, NULL, NULL, 'tsk-demo-analysis-2', CURRENT_TIMESTAMP - interval '8 hours'),
     (5004, 1003, '<demo-5004@example.test>', 'supplier03@example.test', '암호화 첨부파일', '첨부파일 암호를 확인해 주세요.', 'REJECTED', 'ENCRYPTED_FILE', NULL, NULL, NULL, CURRENT_TIMESTAMP - interval '5 hours'),
-    (5005, 1001, '<demo-5005@example.test>', 'supplier01@example.test', '분석 재요청 자료', 'AI 분석 중 오류가 발생한 예시입니다.', 'ANALYSIS_FAILED', 'AI_TIMEOUT', NULL, NULL, 'tsk-demo-analysis-failed', CURRENT_TIMESTAMP - interval '3 hours')
+    (5005, 1001, '<demo-5005@example.test>', 'supplier01@example.test', '분석 재요청 자료', 'AI 분석 중 오류가 발생한 예시입니다.', 'ANALYSIS_FAILED', 'AI_TIMEOUT', NULL, NULL, 'tsk-demo-analysis-failed', CURRENT_TIMESTAMP - interval '3 hours'),
+    -- AI 분석(22~25번)을 눈으로 보려고 둔 건. 발신자를 협력업체에 연결하면(19·21번)
+    -- 그 즉시 분석이 자동으로 돌고, 응답의 analyzeTaskId 로 GET /tasks/{taskId} 를 폴링하면 된다.
+    --
+    -- 본문에 네 가지가 일부러 섞여 있다. AI 를 붙이지 않으면 다 못 보는 것들이다.
+    --   · 열연강판 1,250 t   → 등록 부품(2001)과 매칭된다. t 를 kg 으로 잘못 읽으면 1000배 틀린다
+    --   · 전력 480,000 kWh   → MWh 로 환산된다 (간접 배출)
+    --   · LNG 45,000         → 단위가 없다. 값을 비우고 사유를 남겨야 한다 (24번 · R5)
+    --   · 아연도금강판       → 등록 목록에 없다. 미등록 부품으로 올라와야 한다 (25번)
+    -- 첨부는 달지 않았다. xlsx·pdf 파싱 라이브러리가 아직 없어(ADR 대기) 본문만으로 돈다.
+    (5006, NULL, '<demo-5006@example.test>', 'supplier01@example.test', '9월 배출자료 제출드립니다',
+     E'안녕하세요, 한빛스틸입니다.\n2026년 9월분 배출자료 보내드립니다.\n\n'
+     'ㆍ열연강판 생산량: 1,250 t\n'
+     'ㆍ전력 사용량: 480,000 kWh\n'
+     'ㆍLNG 사용량: 45,000\n'
+     'ㆍ아연도금강판 생산량: 900 t\n\n'
+     '생산 국가는 대한민국입니다. 확인 부탁드립니다.',
+     'UNMATCHED', NULL, NULL, NULL, NULL, CURRENT_TIMESTAMP - interval '1 hour')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO attachment (

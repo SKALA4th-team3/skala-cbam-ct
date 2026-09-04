@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -83,9 +84,21 @@ public class MailAnalysisService {
         return task.getId();
     }
 
-    /** 커밋된 뒤에 별도 스레드에서 돈다. 실패해도 매칭 트랜잭션에는 영향이 없다. */
+    /**
+     * 커밋된 뒤에 별도 스레드에서 돈다. 실패해도 매칭 트랜잭션에는 영향이 없다.
+     *
+     * <p><b>{@code @Transactional} 이 여기에도 있어야 한다.</b> 이 메서드가
+     * {@link #runAnalysis} 를 같은 객체에서 부르기 때문에 스프링 프록시를 지나지 않고,
+     * 그러면 {@code runAnalysis} 의 {@code @Transactional} 이 걸리지 않는다 —
+     * 세션이 없어 LAZY 연관(접수 건의 협력업체)을 읽는 순간 터진다.
+     * <b>실제로 그랬다</b>: 매칭 직후 분석이 「Could not initialize proxy [Supplier] - no session」
+     * 으로 실패했다. 테스트는 {@code runAnalysis} 를 밖에서 불러 프록시를 지나므로 못 잡았다.
+     *
+     * <p>{@code REQUIRES_NEW} 인 이유 — AFTER_COMMIT 이라 부른 쪽 트랜잭션은 이미 끝났다.
+     */
     @Async
     @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onAnalysisRequested(AnalysisRequested event) {
         try {
             runAnalysis(event.taskId(), event.mailReceiptId());
