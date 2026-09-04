@@ -39,7 +39,7 @@ async function confirm() {
   try {
     if (blockers.value.length) throw new ApiError(400, 'NOT_CONFIRMABLE', blockers.value.join(' · '))
     await Review.confirm(route.params.id)
-    board.applyConfirm()
+    await board.refresh()
     ui.say('확정 완료 · 집계와 완제품 내재배출량에 반영됩니다')
     router.push('/')
   } catch (e) { ui.say(`${e.status} ${e.code} · ${e.message}`) }
@@ -68,6 +68,9 @@ function openReject() {
 async function reject() {
   try {
     await Review.reject(route.params.id, reasonText.value, reasonCode.value, resultStatus.value)
+    /* 반려도 판정을 바꾼다 — 전에는 여기서 집계를 다시 세지 않아
+       관제의 부적격 수가 실제와 갈라진 채로 남았다 (확정만 반영하고 있었다) */
+    await board.refresh()
     ui.say(`반려했습니다 · ${reasonCode.value} 사유를 저장했습니다 — 안내문 초안으로 넘어갑니다`)
     router.push(`/feedback/${route.params.id}`)
   } catch (e) { ui.say(`${e.status} ${e.code} · ${e.message}`) }
@@ -116,7 +119,7 @@ async function reject() {
             @close="registering = null" @created="onPartCreated" />
 
   <!-- 반려 사유 — 32번이 「사유 저장」을 요구한다. 비어 있으면 서버가 400 으로 막는다 -->
-  <div v-if="rejecting" class="reject stage" style="--d:60ms">
+  <div v-if="rejecting" class="rj-box stage" style="--d:60ms">
     <div class="subhead"><h3>반려 사유</h3><p>여기 적은 것이 그대로 피드백 초안(UC-10)의 근거가 됩니다.</p></div>
     <div class="rj-row">
       <span class="rj-cap">되돌릴 상태</span>
