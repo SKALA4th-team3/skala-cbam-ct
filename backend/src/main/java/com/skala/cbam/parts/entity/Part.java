@@ -10,6 +10,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -61,6 +64,7 @@ public class Part {
      * 되돌릴 수 없는 스냅샷에 출처 없는 값을 넣지 않기 위해서다(SubmissionService 확정 로직 참고).
      */
     @Column(name = "benchmark_factor_year")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private Integer benchmarkFactorYear;
 
     @OneToMany(mappedBy = "part", cascade = CascadeType.ALL)
