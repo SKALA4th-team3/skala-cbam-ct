@@ -12,7 +12,7 @@ const isLanding = computed(() => route.name === 'landing')
 <template>
   <GlobeBackdrop />
   <ToastHost />
-  <main v-if="isLanding" id="landing"><RouterView /></main>
+  <main v-if="isLanding" id="landing" class="wrap"><RouterView /></main>
   <div v-else id="app" class="wrap on">
     <AppHeader />
     <main class="page">

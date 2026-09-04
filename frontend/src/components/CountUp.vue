@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { REDUCE, tweenNumber } from '@/composables/motion'
 
 /** 숫자가 바뀌면 굴러간다.
- *  지금은 확정(31번)·재판정 뒤에 관제 숫자가 «소리 없이 교체»된다 —
+ *  지금은 확정(31번)·반려(32번) 뒤에 관제 숫자가 «소리 없이 교체»된다 —
  *  토스트만 뜨고 어느 숫자가 왜 바뀐 건지는 안 보인다.
  *  값이 바뀔 때마다 자동으로 다시 구르므로 화면 쪽에서 할 일이 없다. */
 const props = defineProps({ value: { type: Number, default: 0 }, prefix: String, suffix: String })
