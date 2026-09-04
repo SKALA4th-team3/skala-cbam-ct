@@ -1,0 +1,6 @@
+# `docker compose up`에 자동으로 합쳐지는 개발 환경 설정이다.
+# 운영에서는 `docker compose -f docker-compose.yml up -d`로 이 파일을 제외한다.
+services:
+  postgres:
+    volumes:
+      - ./backend/src/main/resources/db/init_demo_data.sql:/docker-entrypoint-initdb.d/02_init_demo_data.sql:ro

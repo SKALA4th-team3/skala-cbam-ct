@@ -12,6 +12,7 @@
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
     "api:status": "node scripts/api-status.mjs",
+    "ai:verify": "node scripts/ai-verify.mjs",
     "api:verify": "vite build --ssr scripts/api-verify.mjs --outDir node_modules/.api-verify --logLevel error && node node_modules/.api-verify/api-verify.js",
     "api:real": "VITE_API_BASE=http://localhost:8080/api/v1 VITE_REAL_API='GET /suppliers,GET /suppliers/{supplierId},POST /suppliers' vite build --ssr scripts/api-real.mjs --outDir node_modules/.api-real --logLevel error && node node_modules/.api-real/api-real.js"
   },

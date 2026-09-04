@@ -1,0 +1,97 @@
+{
+  "status": "ANALYZED",
+  "failureReason": null,
+  "sourceLanguage": "ko",
+  "items": [
+    {
+      "key": "partName",
+      "label": "제품",
+      "rawValue": "제품: 열연강판 (두께 2.4)",
+      "value": "열연코일",
+      "unit": null,
+      "emissionScope": null,
+      "conversionFailReason": null,
+      "note": "등록 부품 「열연코일」과 CN 7208 대역이 같아 매칭했다. 괄호 안 두께는 규격이라 제외했다",
+      "confidence": 0.86,
+      "source": { "attachmentId": null, "locator": "body:line=2" }
+    },
+    {
+      "key": "production",
+      "label": "생산량",
+      "rawValue": "생산량 1,250 MT",
+      "value": 1250,
+      "unit": "TON",
+      "emissionScope": null,
+      "conversionFailReason": null,
+      "note": "MT 는 TON 과 같은 단위라 그대로 옮겼다",
+      "confidence": 0.97,
+      "source": { "attachmentId": 9001, "locator": "xlsx:Sheet1!C7" }
+    },
+    {
+      "key": "electricity",
+      "label": "전력사용량",
+      "rawValue": "전력사용량: 982,000 kWh",
+      "value": 982,
+      "unit": "MWh",
+      "emissionScope": "INDIRECT",
+      "conversionFailReason": null,
+      "note": "환산 kWh→MWh",
+      "confidence": 0.98,
+      "source": { "attachmentId": 9001, "locator": "xlsx:Sheet1!B4" }
+    },
+    {
+      "key": "fuel_steam",
+      "label": "증기 사용량",
+      "rawValue": "증기 사용량 4,200",
+      "value": null,
+      "unit": null,
+      "emissionScope": "DIRECT",
+      "conversionFailReason": "UNIT_NOT_RECOGNIZED",
+      "note": "단위가 적혀 있지 않아 t 인지 GJ 인지 알 수 없다 — 변환하지 않고 비웠다",
+      "confidence": 0.55,
+      "source": { "attachmentId": null, "locator": "body:line=3" }
+    },
+    {
+      "key": "fuel_natural_gas",
+      "label": "천연가스 사용량",
+      "rawValue": "",
+      "value": null,
+      "unit": null,
+      "emissionScope": "DIRECT",
+      "conversionFailReason": null,
+      "note": "원문에 값이 없다",
+      "confidence": 1,
+      "source": { "attachmentId": 9001, "locator": "xlsx:Sheet1!B9" }
+    },
+    {
+      "key": "productionCountry",
+      "label": "생산국",
+      "rawValue": "Korea",
+      "value": "KR",
+      "unit": null,
+      "emissionScope": null,
+      "conversionFailReason": null,
+      "note": "ISO 3166-1 alpha-2 로 옮겼다",
+      "confidence": 0.99,
+      "source": { "attachmentId": 9001, "locator": "xlsx:Sheet1!F2" }
+    },
+    {
+      "key": "documentMonth",
+      "label": "서류 제출일자",
+      "rawValue": "2026.08",
+      "value": "2026-08",
+      "unit": null,
+      "emissionScope": null,
+      "conversionFailReason": null,
+      "note": "YYYY-MM 으로 옮겼다. 33번이 이 값과 현재 월을 비교한다",
+      "confidence": 0.95,
+      "source": { "attachmentId": 9001, "locator": "xlsx:Sheet1!A2" }
+    }
+  ],
+  "unregisteredParts": [
+    {
+      "rawPartName": "아연도금 증기",
+      "note": "등록 부품 목록에 같은 이름이 없다. 「아연도금강판」과 이름이 비슷하지만 다른 품목이라 매칭하지 않았다"
+    }
+  ]
+}

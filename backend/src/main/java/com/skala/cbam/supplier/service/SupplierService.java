@@ -14,6 +14,7 @@ import com.skala.cbam.supplier.dto.SupplierSummaryResponse.MonthlyStatus;
 import com.skala.cbam.supplier.dto.SupplierUpdateRequest;
 import com.skala.cbam.supplier.dto.SupplierUpdateResponse;
 import com.skala.cbam.supplier.repository.SupplierRepository;
+import com.skala.cbam.supplier.repository.SupplierSpecifications;
 import com.skala.cbam.supplier.service.port.SupplierRelatedDataProvider;
 import com.skala.cbam.supplier.service.port.SupplierRelatedDataProvider.SubmissionImpact;
 import java.util.List;
@@ -169,8 +170,8 @@ public class SupplierService {
 
     private Page<Supplier> findPage(SupplierSearchCondition condition, Pageable pageable) {
         if (condition.submissionStatus() == null) {
-            return supplierRepository.search(
-                    condition.search(), condition.country(), condition.status(), pageable);
+            return supplierRepository.findAll(SupplierSpecifications.matches(
+                    condition.search(), condition.country(), condition.status(), null), pageable);
         }
 
         Optional<Set<Long>> filtered = dataProvider.findSupplierIdsBySubmissionStatus(
@@ -179,7 +180,7 @@ public class SupplierService {
         if (filtered.isEmpty() || filtered.get().isEmpty()) {
             return Page.empty(pageable);
         }
-        return supplierRepository.searchWithinIds(
-                condition.search(), condition.country(), condition.status(), filtered.get(), pageable);
+        return supplierRepository.findAll(SupplierSpecifications.matches(
+                condition.search(), condition.country(), condition.status(), filtered.get()), pageable);
     }
 }

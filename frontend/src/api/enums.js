@@ -34,15 +34,41 @@ export const COUNTRY = {
   ID: '인도네시아',
 }
 
+/** 접수 상태 — API 명세 v10 №15 MailReceiptStatus.
+ *  원본을 받아 확인했다 (docs/product/API_SPEC_V10_RECONCILE.md ⑤).
+ *
+ *  ⚠️ 명세의 enum 은 **여섯**인데 요구사항 「상태값」 절은 **넷**만 이름 붙였다.
+ *     MATCHED(발신자 매칭됨)·ANALYZED(분석 완료)의 한글 이름을 팀이 정해야 한다 —
+ *     아래 둘은 그때까지 쓰는 임시 이름이다.
+ *
+ *  ⚠️ `REJECTED` 를 여기 넣지 않았다. **№20 SubmissionStatus 의 REJECTED(반려)와 값이 같다.**
+ *     지금 매핑표는 값 하나에 라벨 하나라 둘을 같이 넣으면 반려가 「접수 불가」로 보인다.
+ *     필드 이름을 보고 갈라야 하는데(mail-receipts 의 status 인지 submissions 의 status 인지)
+ *     그 구조를 넣을지는 실서버가 붙을 때 정한다 — 그전까지 접수 불가는 한글 그대로 오간다. */
+export const MAIL_RECEIPT_STATUS = {
+  WAITING: '접수 대기',
+  MATCHED: '분석 대기',            // ⚠️ 「상태값」 절에 없는 이름 — 임시
+  UNMATCHED: '미확인',
+  ANALYZED: '분석 완료',           // ⚠️ 「상태값」 절에 없는 이름 — 임시
+  ANALYSIS_FAILED: '분석 실패',
+}
+
+/** 분석 실패 사유 — 명세 №16 failureReason.
+ *  ⚠️ R3 「스캔 품질 미달」을 담을 코드가 이 넷에 없다. 팀 확인 대기 */
+export const ANALYSIS_FAILURE = {
+  ENCRYPTED_FILE: '암호가 걸린 파일',
+  PARSE_FAILED: '파싱 실패',
+  UNSUPPORTED_FORMAT: '지원하지 않는 형식',
+  NO_ATTACHMENT: '첨부 없음',
+}
+
 /* ⚠️ 아직 매핑하지 못한 것 — 지어내지 않고 비워 둔다.
-   API 명세 v10 의 enum 이름을 확인하지 못했다. 확인되면 위와 같은 모양으로 추가한다.
-     · 접수 4값   — 접수 대기 · 미확인 · 접수 불가 · 분석 실패 (요구사항 19·20·22번)
      · 피드백 4값 — 초안 · 수정본 · 발송 대기 · 폐기 (요구사항 44~48번)
-   확인되기 전까지 이 값들은 한글 그대로 오간다. 목에서는 문제가 없고,
-   실서버가 영문으로 내려주면 화면 필터가 빈 목록이 되면서 드러난다. */
+       명세 №27·№29 는 DRAFT · READY_TO_SEND · DISCARDED 와 source=AI|HUMAN_EDIT 를 쓰는데,
+       요구사항의 「수정본」이 status 인지 source 인지 갈리지 않는다. 팀 확인 대기 */
 
 /** enum → 한글 */
-const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_JUDGEMENT, ...COUNTRY }
+const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_JUDGEMENT, ...COUNTRY, ...MAIL_RECEIPT_STATUS }
 /** 한글 → enum */
 const CODE = Object.fromEntries(Object.entries(LABEL).map(([code, label]) => [label, code]))
 
