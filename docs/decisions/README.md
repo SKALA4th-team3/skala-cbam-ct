@@ -44,14 +44,13 @@ docs/decisions/0001-ai-response-schema.md
 | [ADR-0001](0001-outlier-threshold.md) | 이상치 판정을 ±30% 고정으로 한다 (34번 · R4) |
 | [ADR-0002](0002-project-scaffold.md) | 초기 구조 — backend/frontend 분리 · Gradle · JavaScript |
 | [ADR-0003](0003-branch-name-jira-key.md) | 브랜치 이름을 Jira 이슈 키 하나로 한다 (`CBAM-43`) |
-| [ADR-0004](0004-database-profiles.md) | PostgreSQL 운영 DB · 프로필별 스키마 검증 정책 |
+| [ADR-0004](0004-database-profiles.md) | H2 개발·운영 DB · 프로필별 저장 정책 |
 | [ADR-0005](0005-status-enum-boundary.md) | 상태값은 서버가 영문 enum · 화면이 한글 — 변환은 FE 경계 한 곳 |
 | [ADR-0006](0006-no-auth-internal-network.md) | 인증·인가를 넣지 않는다 — 사내망을 신뢰 경계로 둔다 |
 | [ADR-0007](0007-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |
 | [ADR-0008](0008-feedback-history-list-endpoint.md) | 발송 이력 전체 조회 경로를 명세에 더한다 (51번·53번) |
 | [ADR-0009](0009-no-paging-on-list-screens.md) | 목록 화면은 페이징하지 않는다 — 전량을 받아 브라우저에서 거른다 |
 | [ADR-0010](0010-ai-response-json-schema.md) | AI 응답 JSON 규격은 화면이 이미 읽는 모양에서 뽑는다 (22~25번 · 42~46번) |
-| [ADR-0011](0011-postgresql-development-and-init-sql.md) | 개발·운영 DB를 PostgreSQL로 통일하고 초기화 SQL로 구성한다 |
 | [ADR-0012](0012-task-resource-generalization.md) | 비동기 작업이 만든 것을 `task.resource_ids` 로 가리킨다 (19번) |
 | [ADR-0013](0013-ai-call-restclient-and-polling.md) | AI 는 `RestClient` 로 부르고 화면 계약은 202 + 폴링으로 둔다 (22~25번 · 42~46번) |
 

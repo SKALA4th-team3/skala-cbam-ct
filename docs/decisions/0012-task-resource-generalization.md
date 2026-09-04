@@ -27,7 +27,7 @@ CBAM-88(PR #31)이 만든 **`Task` 엔티티**는 그것을 가리키지 못했�
 
 이 ADR 의 첫 판은 **`task_resource` 라는 별도 테이블을 더하자**고 했다. 그리고 「`task` 에 컬럼을 더한다」와 「JSON 컬럼 하나로 둔다」를 검토해서 안 고른 것으로 적었다.
 
-**그 판단은 ERD 를 못 보고 내린 것이었다.** CBAM-90(PR #22)이 머지되면서 들어온 [`db/init_db.sql`](../../backend/src/main/resources/db/init_db.sql) 을 보니 `task` 테이블이 **이미 그 컬럼들을 갖고 있었다.**
+**그 판단은 ERD 를 못 보고 내린 것이었다.** CBAM-90(PR #22)이 머지된 뒤 ERD를 확인하니 `task`가 **이미 그 컬럼들을 갖고 있었다.**
 
 ```sql
 CREATE TABLE task (
@@ -35,7 +35,7 @@ CREATE TABLE task (
     mail_receipt_id bigint REFERENCES mail_receipt(id),
     submission_id   bigint REFERENCES submission(id),
     resource_type   varchar(50),
-    resource_ids    jsonb,            -- ← 여러 개를 담는다
+    resource_ids    json,             -- ← 여러 개를 담는다
     unregistered_part_count integer NOT NULL DEFAULT 0,
     ...
 );
@@ -49,8 +49,8 @@ CREATE TABLE task (
 
 **ERD 의 `task.resource_type` · `resource_ids` · `unregistered_part_count` 를 엔티티에 매핑해 쓴다.** 새 테이블을 만들지 않는다.
 
-**① `resource_ids` 는 `jsonb` 다.**
-Hibernate 6 의 `@JdbcTypeCode(SqlTypes.JSON)` 로 `List<Long>` 을 매핑한다. PostgreSQL 은 `jsonb`, 테스트용 H2 는 Hibernate 가 만드는 JSON 타입이라 프로필별로 코드가 갈리지 않는다.
+**① `resource_ids` 는 JSON이다.**
+Hibernate의 `@JdbcTypeCode(SqlTypes.JSON)`로 `List<Long>`을 H2 JSON 타입에 매핑한다.
 
 **② `Task` 엔티티를 옮기지 않는다.**
 `feedback.domain` 에 그대로 두고 `task` 패키지가 읽는다. **옮겨도 의존 방향이 안 바뀌기 때문이다** — `Task` 가 `Feedback` · `FeedbackDraft` 를 참조하고 있어서 `task.domain` 으로 옮기면 `task → feedback` 의존이 따라온다. 그 참조를 `resource_ids` 로 걷어낸 뒤에 옮기는 것이 순서다.
@@ -64,11 +64,11 @@ CBAM-88 이 `feedback_id` · `attempt_number` 로 재발송 회차를 센다(`co
 ## 결과
 
 - 쉬워진다 — 42·43번이 만든 초안을 화면이 №19 한 번으로 받는다. `/feedback-histories` 를 훑지 않는다
-- 쉬워진다 — 새 테이블이 없어 `init_db.sql` 을 고치지 않는다. `ddl-auto: validate` 가 그대로 통과한다
+- 쉬워진다 — 새 테이블 없이 JPA 엔티티 매핑으로 스키마를 함께 관리한다
 - **감수한다** — `resource_ids` 의 무결성을 DB 가 못 지킨다. 기록하는 쪽이 맞는 id 를 넣어야 한다
 - **감수한다** — 새 작업은 `resource_ids`, 예전 작업은 FK 로 **두 길이 잠시 공존한다**
 
 ## 다시 볼 조건
 
 - **`Task` 의 `feedback` · `feedback_draft` 참조를 `resource_ids` 로 옮길 때** — 그때 `Task` 를 `task.domain` 으로 옮기고 두 길을 하나로 합친다
-- `resource_ids` 로 거꾸로 찾아야 할 때 (「이 제출 건을 만든 작업이 무엇인가」) — `jsonb` 인덱스가 필요해진다. 지금은 그 조회가 없다
+- `resource_ids` 로 거꾸로 찾아야 할 때(「이 제출 건을 만든 작업이 무엇인가」) — JSON 검색과 인덱스 전략을 다시 정한다. 지금은 그 조회가 없다

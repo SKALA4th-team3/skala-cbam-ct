@@ -19,7 +19,6 @@ import org.springframework.data.repository.query.Param;
  * 거쳐야 해서, 그 결과를 서비스가 받아 메모리에서 거른다.
  *
  * <p>필터 조합은 {@link SubmissionSpecifications} 가 만든다 — 전달된 것만 조건이 된다.
- * JPQL 의 {@code (:x is null or ...)} 는 PostgreSQL 에서 파라미터 타입 추론에 실패해 500 이 난다.
  */
 public interface SubmissionRepository extends JpaRepository<Submission, Long>,
         JpaSpecificationExecutor<Submission> {

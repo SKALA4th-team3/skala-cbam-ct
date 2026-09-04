@@ -24,10 +24,7 @@
 ## 실행
 
 ```bash
-cp .env.example .env          # DB_USERNAME·DB_PASSWORD 값을 채운다. .env 는 커밋되지 않는다
-docker compose up -d
-set -a && source .env && set +a
-export SPRING_PROFILES_ACTIVE=dev
+cp .env.example .env          # 메일·AI 기능을 쓸 때 필요한 값만 채운다
 
 # 새 터미널에서 실행한다.
 cd backend && ./gradlew bootRun              # http://localhost:8080
@@ -36,16 +33,15 @@ cd backend && ./gradlew bootRun              # http://localhost:8080
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-개발·발표·운영 환경은 PostgreSQL을 사용한다. PostgreSQL 컨테이너가 빈 볼륨을 처음 만들 때 초기화 SQL을 실행하며, 테스트만 격리된 H2를 사용한다 — [ADR-0011](docs/decisions/0011-postgresql-development-and-init-sql.md).
+개발과 운영 환경 모두 H2를 사용한다 — [ADR-0004](docs/decisions/0004-database-profiles.md).
 
 ### 막히면 여기부터 본다
 
 | 증상 | 원인 | |
 | --- | --- | --- |
-| `bind: address already in use` | 5432 를 이미 쓰고 있다 | `.env` 의 `DB_PORT` 와 `DB_URL` 을 같은 다른 포트로 바꾼다 |
-| 부팅이 `Schema validation` 으로 죽는다 | 엔티티와 `init_db.sql` 이 어긋났다 | 컬럼 이름·타입을 맞춘다. **`ddl-auto` 를 바꿔 덮지 않는다** |
+| H2 콘솔에 연결되지 않는다 | JDBC URL이 실행 프로필과 다르다 | 개발 프로필에서는 `jdbc:h2:mem:cbam`을 입력한다 |
+| 운영 데이터를 재시작 후 찾을 수 없다 | `dev` 인메모리 프로필로 실행했다 | `SPRING_PROFILES_ACTIVE=prod`로 파일 DB를 사용한다 |
 | 화면은 뜨는데 데이터가 목이다 | 그 엔드포인트가 `VITE_REAL_API` 에 없다 | 아래 「FE 와 BE 를 붙인다」 |
-| `docker compose up` 뒤에도 데이터가 없다 | 볼륨이 이미 있어 초기화 SQL 이 안 돈다 | `docker compose down -v` 로 볼륨째 지우고 다시 올린다 |
 
 ## FE 와 BE 를 붙인다
 
@@ -80,12 +76,12 @@ npm run api:real           # 실서버 계약 검사 — BE 가 8080 에 떠 있
 `.env` 에 `AI_API_KEY` 를 채우고 BE 를 띄운 뒤, **미확인 접수 건을 협력업체에 연결**하면
 그 즉시 분석이 자동으로 돈다(요구사항 20번).
 
+H2에는 샘플 데이터를 자동 입력하지 않는다. 먼저 API로 협력업체와 미확인 접수 데이터를 준비한 뒤 실제 ID로 요청한다.
+
 ```bash
-# 데모 데이터의 5006 번은 이걸 보려고 둔 건이다 — 본문에 등록 부품·미등록 부품·
-# 단위 없는 값이 일부러 섞여 있다
-curl -X PATCH localhost:8080/api/v1/mail-receipts/5006/supplier \
+curl -X PATCH localhost:8080/api/v1/mail-receipts/{mailReceiptId}/supplier \
      -H 'Content-Type: application/json' -H 'X-Operator-Id: demo' \
-     -d '{"supplierId":1001}'
+     -d '{"supplierId":{supplierId}}'
 # → {"analyzeTaskId":"tsk-…"}
 
 curl localhost:8080/api/v1/tasks/tsk-…      # PENDING → COMPLETED (10초 안팎)
@@ -95,61 +91,48 @@ curl localhost:8080/api/v1/tasks/tsk-…      # PENDING → COMPLETED (10초 안
 **키가 없어도 앱은 뜬다.** 그때 분석은 실패로, 피드백 초안은 46번의 기본 템플릿으로 간다 —
 [ADR-0013](docs/decisions/0013-ai-call-restclient-and-polling.md).
 
-### PostgreSQL
+### H2 프로필
 
-루트의 `.env.example`을 `.env`로 복사하고 DB 값을 채운 뒤, Docker Desktop을 실행한다.
-
-```bash
-docker compose up -d
-docker compose ps
-docker compose logs -f postgres
-```
-
-기본 `docker compose up`은 `docker-compose.override.yml`을 자동으로 합친다. 빈 DB에 `init_db.sql`로 스키마와 국가 기준정보를 만들고, 이어서 `init_demo_data.sql`로 개발·발표용 샘플 데이터를 넣는다.
-
-운영 환경은 override를 제외해 샘플 데이터가 들어가지 않도록 기본 Compose 파일만 명시한다.
+기본 `dev` 프로필은 인메모리 DB를 사용한다. 애플리케이션을 종료하면 데이터가 사라지므로 개발과 테스트에 적합하다.
 
 ```bash
-docker compose -f docker-compose.yml up -d
+cd backend
+./gradlew bootRun
 ```
 
-Docker Compose는 루트의 `.env`를 읽지만 Spring Boot는 이 파일을 자동으로 읽지 않는다. PostgreSQL에 애플리케이션을 연결하려면 `.env` 값을 실행 셸의 환경변수로 불러온다. 일반 개발·발표는 `dev`, 운영은 `prod` 프로필을 사용한다.
+개발 중에는 `http://localhost:8080/h2-console`에서 DB를 확인할 수 있다.
+
+| 항목 | 값 |
+| --- | --- |
+| JDBC URL | `jdbc:h2:mem:cbam` |
+| User Name | `sa` |
+| Password | 비워 둠 |
+
+`prod` 프로필은 파일 DB를 사용해 재시작 후에도 데이터를 보존한다. 별도 DB 서버나 Docker는 필요하지 않다.
 
 macOS/Linux:
 
 ```bash
-set -a
-source .env
-set +a
-export SPRING_PROFILES_ACTIVE=dev
-cd backend && ./gradlew bootRun
+cd backend
+SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = "dev"
-$env:DB_URL = "jdbc:postgresql://localhost:5432/cbam"
-$env:DB_USERNAME = "<.env의 DB_USERNAME>"
-$env:DB_PASSWORD = "<.env의 DB_PASSWORD>"
-cd backend; .\gradlew.bat bootRun
+cd backend
+$env:SPRING_PROFILES_ACTIVE = "prod"
+.\gradlew.bat bootRun
 ```
 
-`DB_PORT` 또는 `POSTGRES_DB`를 기본값에서 변경했다면 `DB_URL`도 같은 포트와 DB 이름을 가리켜야 한다.
-
-컨테이너를 중지하고 제거하되 DB 데이터를 유지하려면 다음 명령을 사용한다.
+기본 데이터 파일은 `backend/data/cbam.mv.db`에 생성된다. 저장 위치를 바꿀 때만 `DB_URL`에 H2 파일 JDBC URL을 지정한다.
 
 ```bash
-docker compose down
+DB_URL='jdbc:h2:file:/원하는/경로/cbam;DB_CLOSE_ON_EXIT=FALSE' \
+SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 ```
 
-DB 데이터까지 초기화할 때만 `--volumes`를 붙인다. **이 명령은 PostgreSQL 데이터를 복구할 수 없게 삭제한다.**
-
-```bash
-docker compose down --volumes
-```
-
-초기화 SQL은 PostgreSQL 데이터 볼륨을 처음 생성할 때만 실행된다. SQL 변경을 기존 볼륨에 자동 적용하지 않으므로 초기 상태로 다시 만들 때만 `docker compose down --volumes` 후 재기동한다. 샘플 데이터 이메일은 모두 `example.test` 예약 도메인이다.
+`prod`에서도 Hibernate가 ERD에 대응하는 엔티티를 기준으로 스키마를 갱신한다. 데이터 파일을 삭제하면 저장된 데이터를 복구할 수 없으므로 초기화 목적이 아니라면 `backend/data/`를 지우지 않는다.
 
 ## 개발 시작할 때
 

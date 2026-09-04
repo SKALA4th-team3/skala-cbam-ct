@@ -41,9 +41,9 @@ cbam:
     model: "${AI_MODEL:gpt-4.1-mini}"
     timeout: "${AI_TIMEOUT:60s}"
 
-# DB는 프로필별 설정을 사용한다 (ADR-0010-postgresql).
-# - dev: application-dev.yml (PostgreSQL, 개발용 샘플 데이터는 Docker 초기화 시 입력)
-# - prod: application-prod.yml (PostgreSQL, 스키마만 Docker 초기화 시 생성)
+# DB는 프로필별 설정을 사용한다 (ADR-0004).
+# - dev: application-dev.yml (H2 인메모리)
+# - prod: application-prod.yml (H2 파일 DB)
 # 메일 수신(18번)은 아직 스프링 표준 설정이 없다.
 # 방식이 정해지면 ADR 을 쓰고 여기에 붙인다.
 # AI 호출(23번·42번)은 위 cbam.ai 로 정해졌다 — ADR-0013.

@@ -13,10 +13,8 @@ import org.springframework.data.jpa.domain.Specification;
 /**
  * 발송 이력 목록에 <b>실제로 전달된 필터만</b> SQL 조건으로 만든다 (51·53번 · ADR-0008).
  *
- * <p><b>왜 JPQL 의 {@code (:x is null or ...)} 를 안 쓰나</b> — PostgreSQL 이 그 형태의
- * 바인딩 파라미터 타입을 추론하지 못해 {@code could not determine data type of parameter $7} 로
- * 500 이 난다. H2 에서는 통과해서 테스트로는 안 잡히고, 실서버에 올려야 드러난다.
- * {@code SupplierSpecifications} 가 같은 이유로 먼저 이 방식으로 옮겨 갔다.
+ * <p>JPQL 에 모든 nullable 필터를 한 번에 넣지 않고 전달된 값만 조건으로 만든다.
+ * {@code SupplierSpecifications} 와 같은 방식이다.
  */
 public final class FeedbackSpecifications {
 

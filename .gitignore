@@ -126,6 +126,12 @@ uploads/
 attachments/
 **/attachments/
 
+# ─── H2 파일 DB ──────────────────────────────
+# prod 프로필의 영속 데이터는 로컬 파일이며 저장소에 넣지 않는다
+data/
+*.mv.db
+*.trace.db
+
 # Local API specifications and reference files
 /ref/
 /Products_todo.md

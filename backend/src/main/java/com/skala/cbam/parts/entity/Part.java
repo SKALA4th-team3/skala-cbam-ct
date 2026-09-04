@@ -38,8 +38,7 @@ public class Part {
     private String partCode;
 
     /**
-     * ERD 의 컬럼 이름은 {@code name} 이다 (init_db.sql). 필드 이름을 그대로 두면 Hibernate 가
-     * {@code part_name} 을 찾아 {@code ddl-auto: validate} 에서 부팅이 막힌다.
+     * ERD 의 컬럼 이름은 {@code name} 이므로 명시적으로 매핑한다.
      */
     @Column(name = "name", nullable = false, unique = true)
     private String partName;
