@@ -15,7 +15,7 @@
 
 ```jsonc
 {
-  "model": "gpt-4.1-mini",     // 실제로 불러 보고 고른 값 (ADR-0012)
+  "model": "gpt-4.1-mini",     // 실제로 불러 보고 고른 값 (ADR-0013)
   "temperature": 0.5,          // 문장을 쓰는 일이라 0 이면 딱딱하다. 근거는 스키마가 잡는다
   "messages": [
     { "role": "system", "content": "<아래 시스템 프롬프트 + 문체 블록>" },
@@ -35,7 +35,7 @@
 ## 시스템 프롬프트
 
 **원본은 [`system/draft.system.txt`](system/draft.system.txt) 하나다.** 여기 옮겨 적지 않는다 —
-두 벌을 두면 갈라진다 ([ADR-0012](../../decisions/0012-ai-call-restclient-and-polling.md) ⑤).
+두 벌을 두면 갈라진다 ([ADR-0013](../../decisions/0013-ai-call-restclient-and-polling.md) ⑤).
 문체 블록은 `ai/prompt/DraftStyle` 이 들고 있고 시스템 프롬프트 끝에 한 줄로 붙는다.
 
 ### 실제로 불러 보고 고친 것

@@ -20,12 +20,12 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 /**
- * OpenAI 호환 {@code /chat/completions} 호출 (ADR-0012 ①).
+ * OpenAI 호환 {@code /chat/completions} 호출 (ADR-0013 ①).
  *
  * <p><b>의존성을 더하지 않았다.</b> Spring Boot 4 의 {@code spring-web} 에 있는 {@link RestClient}
  * 를 쓴다 — SDK 를 넣으면 제공자가 바뀔 때 그 SDK 가 코드 전체에 박힌다.
  *
- * <p><b>스트리밍으로 받는다</b>(ADR-0012 ②). 화면 계약은 202 + 폴링이라 실시간 타자 효과에 쓰는
+ * <p><b>스트리밍으로 받는다</b>(ADR-0013 ②). 화면 계약은 202 + 폴링이라 실시간 타자 효과에 쓰는
  * 것이 아니다 — 목적은 <b>읽기 타임아웃</b>이다. 응답을 한 덩어리로 기다리면 긴 안내문에서
  * 60초 읽기 제한에 걸리는데, 스트리밍이면 토큰이 오는 동안 제한이 갱신된다.
  * <b>서버는 조각을 다 모아 완성된 JSON 만 돌려준다</b> — 반쯤 만들어진 초안이 저장되는 길을 만들지 않는다.

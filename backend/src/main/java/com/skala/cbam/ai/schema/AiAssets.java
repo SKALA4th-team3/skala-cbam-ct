@@ -13,7 +13,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
- * 응답 스키마와 시스템 프롬프트를 classpath 에서 읽는다 (ADR-0012 ⑤).
+ * 응답 스키마와 시스템 프롬프트를 classpath 에서 읽는다 (ADR-0013 ⑤).
  *
  * <p><b>원본은 {@code docs/product/prompts/} 한 벌뿐이다.</b> Gradle 의 {@code processResources} 가
  * 그것을 {@code classpath:ai/} 로 복사한다 — 두 벌을 두면 갈라지고, 갈라지면

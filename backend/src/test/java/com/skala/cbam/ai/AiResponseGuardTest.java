@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>여기 있는 사례는 상상한 것이 아니다 — {@code docs/product/prompts/} 의 프롬프트로 OpenAI 를
  * 실제로 불러서 나온 응답들이다. 프롬프트에 두 번 적어도 모델이 지키지 않는 것이 있어
- * 서버가 강제하기로 했다(ADR-0012).
+ * 서버가 강제하기로 했다(ADR-0013).
  */
 class AiResponseGuardTest {
 

@@ -38,7 +38,7 @@ public record TaskDetailResponse(
 
         /**
          * 25번 — 이 작업이 만든 제출 건에 남은 미등록 부품 수.
-         * {@code ANALYZE_MAIL_RECEIPT} 에서만 0 이 아니다 (ADR-0011 ③ — 저장하지 않고 조회 때 센다).
+         * {@code ANALYZE_MAIL_RECEIPT} 에서만 0 이 아니다 (ADR-0012 ③ — 저장하지 않고 조회 때 센다).
          */
         int unregisteredPartCount,
 

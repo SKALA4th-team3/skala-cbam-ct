@@ -37,7 +37,6 @@ import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.dto.PageResponse;
 import com.skala.cbam.supplier.repository.SupplierRepository;
 import com.skala.cbam.task.domain.TaskResourceType;
-import com.skala.cbam.task.service.TaskResourceRecorder;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -66,7 +65,7 @@ import org.springframework.transaction.annotation.Transactional;
  * AI 키가 없어도(dev·테스트) 그 경로로 그대로 동작한다.
  *
  * <p>생성·재생성은 지금도 동기라 status=COMPLETED 로 응답한다. 만들어진 초안 id 는
- * {@link TaskResourceRecorder} 로 남겨 №19 작업 조회의 {@code resourceIds} 가 돌려준다(ADR-0011) —
+ * {@code Task.recordResult()} 로 남겨 №19 작업 조회의 {@code resourceIds} 가 돌려준다(ADR-0012) —
  * 전에는 화면이 발송 이력을 훑어 방금 만든 초안을 찾아야 했다.
  *
  * <p>발송(send)만 다르다 — 실제 {@link JavaMailSender} 로 진짜 발송을 시도한다. .env 에 MAIL_SMTP_*
@@ -88,7 +87,6 @@ public class FeedbackService {
     private final TaskRepository taskRepository;
     private final SupplierRepository supplierRepository;
     private final SubmissionRelatedDataProvider submissionRelatedDataProvider;
-    private final TaskResourceRecorder taskResourceRecorder;
     private final AiService aiService;
     private final JavaMailSender mailSender;
 
@@ -174,11 +172,10 @@ public class FeedbackService {
                 .fallbackApplied(anyFallback)
                 .requestedBy(operatorId)
                 .build();
+        // 43번 일괄은 초안 N 개를 만들고 Task 는 하나다 — 단수 FK 로는 못 가리킨다 (ADR-0012)
+        task.recordResult(TaskResourceType.FEEDBACK, createdFeedbackIds);
         task.completeSuccessfully();
         taskRepository.save(task);
-
-        // 43번 일괄은 초안 N 개를 만들고 Task 는 하나다 — 단수 FK 로는 못 가리킨다 (ADR-0011)
-        taskResourceRecorder.record(task.getId(), TaskResourceType.FEEDBACK, createdFeedbackIds);
 
         return new FeedbackDraftCreateResponse(task.getId(), TaskStatus.COMPLETED, contexts.size());
     }
@@ -258,9 +255,9 @@ public class FeedbackService {
                 .fallbackApplied(generated.fallbackApplied())
                 .requestedBy(operatorId)
                 .build();
+        task.recordResult(TaskResourceType.FEEDBACK_DRAFT, List.of(draft.getId()));
         task.completeSuccessfully();
         taskRepository.save(task);
-        taskResourceRecorder.record(task.getId(), TaskResourceType.FEEDBACK_DRAFT, draft.getId());
 
         return new FeedbackDraftRegenerateResponse(task.getId(), TaskStatus.COMPLETED, feedback.getId(), nextVersion);
     }

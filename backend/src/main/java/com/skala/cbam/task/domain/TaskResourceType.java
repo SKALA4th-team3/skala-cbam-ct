@@ -9,7 +9,7 @@ import java.util.Locale;
  * <p>명세 응답은 {@code "submission"} 처럼 <b>소문자</b>다. DB 에는 대문자 이름으로 저장하고
  * JSON 으로 나갈 때만 소문자로 바꾼다 — 같은 값을 두 표기로 저장하지 않기 위해서다.
  *
- * <p>ADR-0011 참고. 종류가 다섯을 넘어가면 조회 전략을 다시 본다.
+ * <p>ERD 의 {@code task.resource_type} 에 이 이름 그대로 들어간다 (ADR-0012).
  */
 public enum TaskResourceType {
 

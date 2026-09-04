@@ -17,7 +17,6 @@ import com.skala.cbam.parts.entity.Part;
 import com.skala.cbam.parts.repository.PartsRepository;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.task.domain.TaskResourceType;
-import com.skala.cbam.task.service.TaskResourceRecorder;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +37,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  *
  * <p><b>왜 비동기인가</b> — AI 호출이 수 초 걸린다. 매칭 응답(№18)이 그동안 막혀 있으면
  * 담당자는 버튼을 누르고 화면이 멎은 것을 본다. {@code taskId} 를 즉시 주고 화면이 폴링한다
- * (ADR-0012 ②).
+ * (ADR-0013 ②).
  *
  * <p><b>왜 커밋 뒤에 도는가</b> — {@link TransactionalEventListener} 의 {@code AFTER_COMMIT} 이다.
  * 매칭 트랜잭션이 커밋되기 전에 다른 스레드가 돌면 그 스레드는 아직 없는 접수 건을 읽는다.
@@ -54,7 +53,6 @@ public class MailAnalysisService {
     private final AttachmentRepository attachmentRepository;
     private final PartsRepository partsRepository;
     private final TaskRepository taskRepository;
-    private final TaskResourceRecorder taskResourceRecorder;
     private final AttachmentTextExtractor attachmentTextExtractor;
     private final AiService aiService;
     private final AnalysisResultSink analysisResultSink;
@@ -70,18 +68,17 @@ public class MailAnalysisService {
      */
     @Transactional
     public String scheduleAnalysis(MailReceipt receipt, String requestedBy) {
+        // 어느 접수 건을 분석하는지는 task.mail_receipt_id 가 들고 있다 (ERD 그대로)
         Task task = taskRepository.save(Task.builder()
                 .type(TaskType.ANALYZE_MAIL_RECEIPT)
                 .status(TaskStatus.PENDING)
+                .mailReceiptId(receipt.getId())
                 .progressTotal(1)
                 .fallbackApplied(false)
                 .requestedBy(requestedBy)
                 .build());
 
         receipt.startAnalysis(task.getId());
-        // 어느 접수 건을 분석했는지 남긴다 — 결과 submission 이 없어도 추적할 수 있다
-        taskResourceRecorder.record(task.getId(), TaskResourceType.MAIL_RECEIPT, receipt.getId());
-
         events.publishEvent(new AnalysisRequested(task.getId(), receipt.getId()));
         return task.getId();
     }
@@ -152,7 +149,8 @@ public class MailAnalysisService {
         }
 
         AnalysisResultSink.Outcome outcome = analysisResultSink.save(mailReceiptId, result);
-        taskResourceRecorder.record(task.getId(), TaskResourceType.SUBMISSION, outcome.submissionIds());
+        task.recordResult(TaskResourceType.SUBMISSION, outcome.submissionIds());
+        task.recordUnregisteredPartCount(outcome.unregisteredPartCount());
 
         receipt.completeAnalysis();
         task.completeSuccessfully();

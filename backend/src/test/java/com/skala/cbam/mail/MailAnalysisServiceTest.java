@@ -11,7 +11,14 @@ import com.skala.cbam.mail.domain.MailReceipt;
 import com.skala.cbam.mail.domain.MailReceiptStatus;
 import com.skala.cbam.mail.repository.MailReceiptRepository;
 import com.skala.cbam.mail.service.MailAnalysisService;
-import com.skala.cbam.mail.service.port.AnalysisResultSink;
+import com.skala.cbam.submission.domain.ExtractionField;
+import com.skala.cbam.submission.domain.Submission;
+import com.skala.cbam.submission.domain.SubmissionStatus;
+import com.skala.cbam.submission.domain.UnregisteredPartStatus;
+import com.skala.cbam.submission.repository.ExtractionFieldRepository;
+import com.skala.cbam.submission.repository.SubmissionRepository;
+import com.skala.cbam.submission.repository.UnregisteredPartRepository;
+import com.skala.cbam.task.domain.TaskResourceType;
 import com.skala.cbam.parts.entity.Part;
 import com.skala.cbam.parts.entity.PartUnit;
 import com.skala.cbam.parts.repository.PartsRepository;
@@ -103,6 +110,12 @@ class MailAnalysisServiceTest {
     private SupplierRepository supplierRepository;
     @Autowired
     private PartsRepository partsRepository;
+    @Autowired
+    private SubmissionRepository submissionRepository;
+    @Autowired
+    private ExtractionFieldRepository extractionFieldRepository;
+    @Autowired
+    private UnregisteredPartRepository unregisteredPartRepository;
 
     private MailReceipt receipt;
 
@@ -135,8 +148,8 @@ class MailAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("분석이 끝나면 접수는 ANALYZED 가 되고 작업은 №19 로 조회된다")
-    void 분석에_성공하면_작업이_완료된다() {
+    @DisplayName("분석이 끝나면 제출 데이터가 생기고 №19 가 그 id 를 돌려준다 — 22번부터 29번까지 이어진다")
+    void 분석에_성공하면_제출_데이터가_생긴다() {
         String taskId = mailAnalysisService.scheduleAnalysis(receipt, "demo");
         assertThat(taskRepository.findById(taskId)).get()
                 .satisfies(t -> assertThat(t.getStatus()).isEqualTo(TaskStatus.PENDING));
@@ -150,9 +163,45 @@ class MailAnalysisServiceTest {
         assertThat(detail.status()).isEqualTo(TaskStatus.COMPLETED);
         assertThat(detail.taskType().name()).isEqualTo("ANALYZE_MAIL_RECEIPT");
         assertThat(detail.errorCode()).isNull();
-        // 제출 도메인(CBAM-90)이 아직 없어 submission id 는 없다.
-        // 대신 어느 접수 건을 분석했는지는 남는다 — 없는 id 를 지어내지 않는다
-        assertThat(detail.resourceIds()).containsExactly(receipt.getId());
+        assertThat(detail.resourceType()).isEqualTo(TaskResourceType.SUBMISSION);
+        assertThat(detail.resourceIds()).hasSize(1);
+
+        Long submissionId = detail.resourceIds().get(0);
+        Submission submission = submissionRepository.findById(submissionId).orElseThrow();
+
+        // 담당자 검토 목록(29번)에 그대로 올라온다
+        assertThat(submission.getStatus()).isEqualTo(SubmissionStatus.REVIEW_PENDING);
+        assertThat(submission.getMailReceiptId()).isEqualTo(receipt.getId());
+
+        // 판정은 규칙(33~37번)의 몫이다 — AI 가 채우지 않는다 (ADR-0010 ①)
+        assertThat(submission.getJudgement()).isNull();
+        assertThat(submission.getSeverity()).isNull();
+        assertThat(submission.getEligibilityStatus()).isNull();
+
+        // 배출량 칸은 비어 있어야 한다 — 예시는 연료·전력 사용량이지 tCO2e 가 아니다.
+        // 사용량을 배출량으로 저장하면 41번 집계와 신고 수치가 통째로 틀린다
+        assertThat(submission.getDirectEmissionTco2e()).isNull();
+        assertThat(submission.getIndirectEmissionTco2e()).isNull();
+
+        List<ExtractionField> fields = extractionFieldRepository
+                .findBySubmissionIdOrderByFieldCodeAscSequenceNumberAsc(submissionId);
+        assertThat(fields).isNotEmpty();
+        assertThat(fields).allSatisfy(f -> assertThat(f.getFieldCode()).isNotBlank());
+
+        // R5 — 값은 있는데 못 옮긴 항목은 행이 남고 사유가 붙는다. 원문은 보존된다 (24번)
+        assertThat(fields)
+                .filteredOn(f -> f.getConversionFailureReason() != null)
+                .allSatisfy(f -> {
+                    assertThat(f.getRawValue()).isNotBlank();
+                    assertThat(f.getNormalizedDecimal()).isNull();
+                    assertThat(f.getNormalizedText()).isNull();
+                });
+
+        // 25번 — 미등록 부품이 담당자가 처리할 상태로 남는다
+        assertThat(unregisteredPartRepository.findBySubmissionId(submissionId))
+                .allSatisfy(p -> assertThat(p.getStatus()).isEqualTo(UnregisteredPartStatus.OPEN));
+        assertThat(detail.unregisteredPartCount())
+                .isEqualTo(unregisteredPartRepository.findBySubmissionId(submissionId).size());
     }
 
     @Test
@@ -223,11 +272,23 @@ class MailAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("제출 도메인이 붙기 전에는 저장하지 않고 빈 결과를 정직하게 돌려준다")
-    void 저장할_곳이_없으면_빈_결과다() {
-        AnalysisResultSink.Outcome outcome = AnalysisResultSink.Outcome.empty();
-        assertThat(outcome.submissionIds()).isEmpty();
-        assertThat(outcome.unregisteredPartCount()).isZero();
+    @DisplayName("협력업체가 매칭되지 않은 접수 건은 제출 데이터를 만들지 않는다 — 억지로 만들지 않는다")
+    void 매칭되지_않은_건은_저장하지_않는다() {
+        MailReceipt unmatched = mailReceiptRepository.save(MailReceipt.builder()
+                .messageId("<analysis-test-unmatched@mail.example.com>")
+                .senderEmail("unknown@example.com")
+                .subject("발신자를 모르는 메일")
+                .body("열연강판 생산량 1,250 t.")
+                .status(MailReceiptStatus.UNMATCHED)
+                .receivedAt(OffsetDateTime.parse("2026-09-02T11:00:00+09:00"))
+                .build());
+
+        String taskId = mailAnalysisService.scheduleAnalysis(unmatched, "demo");
+        mailAnalysisService.runAnalysis(taskId, unmatched.getId());
+
+        TaskDetailResponse detail = taskQueryService.getDetail(taskId);
+        assertThat(detail.resourceIds()).isEmpty();
+        assertThat(detail.resourceType()).isNull();
     }
 
     @Test

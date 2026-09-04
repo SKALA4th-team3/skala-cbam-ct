@@ -2,7 +2,7 @@ package com.skala.cbam.ai.client;
 
 /**
  * AI 호출이 실패했다. {@link #errorCode()} 는 <b>명세가 정한 값만</b> 쓴다 —
- * {@code AI_TIMEOUT} · {@code AI_ERROR} (API 명세 v10 №19). 새 코드를 만들지 않는다(ADR-0012 ④).
+ * {@code AI_TIMEOUT} · {@code AI_ERROR} (API 명세 v10 №19). 새 코드를 만들지 않는다(ADR-0013 ④).
  *
  * <p>모델이 「읽지 못했다」고 <b>정상 응답</b>하는 것은 이 예외가 아니다 — 그건
  * {@code status: "ANALYSIS_FAILED"} 로 오고 №16 의 {@code failureReason} 으로 저장된다.

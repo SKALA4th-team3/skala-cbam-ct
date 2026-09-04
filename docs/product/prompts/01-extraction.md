@@ -62,7 +62,7 @@
 ## 시스템 프롬프트
 
 **원본은 [`system/extraction.system.txt`](system/extraction.system.txt) 하나다.** 여기 옮겨 적지 않는다 —
-두 벌을 두면 갈라지고, 갈라지면 문서가 말하는 것과 서버가 보내는 것이 달라진다 ([ADR-0012](../../decisions/0012-ai-call-restclient-and-polling.md) ⑤).
+두 벌을 두면 갈라지고, 갈라지면 문서가 말하는 것과 서버가 보내는 것이 달라진다 ([ADR-0013](../../decisions/0013-ai-call-restclient-and-polling.md) ⑤).
 Gradle 의 `processResources` 가 그 파일을 백엔드 classpath 의 `ai/` 로 복사하고, `AiAssets` 가 그것을 읽는다.
 
 ### 실제로 불러 보고 고친 것

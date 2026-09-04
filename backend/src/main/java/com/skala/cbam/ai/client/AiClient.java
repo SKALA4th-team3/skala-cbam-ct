@@ -6,7 +6,7 @@ import tools.jackson.databind.JsonNode;
  * 구조화 출력으로 모델을 한 번 부른다.
  *
  * <p>도메인을 모른다 — 프롬프트와 스키마를 받아 JSON 을 돌려줄 뿐이다. 제공자를 바꾸면
- * 이 인터페이스의 구현만 갈아 끼운다(ADR-0012 ①).
+ * 이 인터페이스의 구현만 갈아 끼운다(ADR-0013 ①).
  */
 public interface AiClient {
 
