@@ -31,6 +31,8 @@ import com.skala.cbam.feedback.service.port.SubmissionRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.dto.PageResponse;
 import com.skala.cbam.supplier.repository.SupplierRepository;
+import com.skala.cbam.task.domain.TaskResourceType;
+import com.skala.cbam.task.service.TaskResourceRecorder;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -52,8 +54,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 피드백 API 서비스 (42~53번 중 47·49번 제외, CBAM-88).
  *
  * <p>AI 제공자가 미정이라 초안 생성·재생성은 항상 요구사항 46번의 기본 템플릿 경로로만 동작한다.
- * 202 봉투(taskId)는 계약대로 만들되, GET /tasks/{taskId}(19번, 폴링)가 이 스코프에 없어 실제
- * 폴링은 안 된다 — 그래서 생성·재생성은 항상 status=COMPLETED 로 응답한다(동기로 이미 끝났으므로).
+ * 생성·재생성은 실제로 동기라 status=COMPLETED 로 응답한다.
+ *
+ * <p>만들어진 초안 id 는 {@link TaskResourceRecorder} 로 남긴다 — №19 작업 조회가 그것을
+ * {@code resourceIds} 로 돌려준다(ADR-0011). 전에는 화면이 발송 이력을 훑어 방금 만든 초안을
+ * 찾아야 했다(PR #31 리뷰에서 확인한 문제).
  *
  * <p>발송(send)만 다르다 — 실제 {@link JavaMailSender} 로 진짜 발송을 시도한다. .env 에 MAIL_SMTP_*
  * 가 없으면 진짜로 502 MAIL_GATEWAY_ERROR 가 난다. 이건 명세가 원래 요구하는 에러 코드라 가짜로
@@ -72,6 +77,7 @@ public class FeedbackService {
     private final TaskRepository taskRepository;
     private final SupplierRepository supplierRepository;
     private final SubmissionRelatedDataProvider submissionRelatedDataProvider;
+    private final TaskResourceRecorder taskResourceRecorder;
     private final JavaMailSender mailSender;
 
     // ── 42·43번: 초안 생성 (개별 + 일괄) ──────────────────────────────
@@ -115,6 +121,8 @@ public class FeedbackService {
             throw new FeedbackException(FeedbackErrorCode.NO_TARGET);
         }
 
+        List<Long> createdFeedbackIds = new ArrayList<>();
+
         for (TargetContext ctx : contexts) {
             Supplier supplier = supplierRepository.findById(ctx.supplierId())
                     .orElseThrow(() -> new FeedbackException(FeedbackErrorCode.SUBMISSION_NOT_FOUND,
@@ -140,6 +148,8 @@ public class FeedbackService {
                     .fallbackApplied(true)
                     .fallbackTemplateId(FALLBACK_TEMPLATE_ID)
                     .build());
+
+            createdFeedbackIds.add(feedback.getId());
         }
 
         Task task = Task.builder()
@@ -151,6 +161,9 @@ public class FeedbackService {
                 .build();
         task.completeSuccessfully();
         taskRepository.save(task);
+
+        // 43번 일괄은 초안 N 개를 만들고 Task 는 하나다 — 단수 FK 로는 못 가리킨다 (ADR-0011)
+        taskResourceRecorder.record(task.getId(), TaskResourceType.FEEDBACK, createdFeedbackIds);
 
         return new FeedbackDraftCreateResponse(task.getId(), TaskStatus.COMPLETED, contexts.size());
     }
@@ -226,6 +239,7 @@ public class FeedbackService {
                 .build();
         task.completeSuccessfully();
         taskRepository.save(task);
+        taskResourceRecorder.record(task.getId(), TaskResourceType.FEEDBACK_DRAFT, draft.getId());
 
         return new FeedbackDraftRegenerateResponse(task.getId(), TaskStatus.COMPLETED, feedback.getId(), nextVersion);
     }

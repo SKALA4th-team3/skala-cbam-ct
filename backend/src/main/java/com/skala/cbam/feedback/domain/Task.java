@@ -154,11 +154,27 @@ public class Task extends BaseTimeEntity {
 
     /** 발송 실패도 이걸로 처리한다 — 이 메서드가 불리면 deliveryStatus 도 FAILED 로 채운다. */
     public void fail(String errorCode, String errorMessage) {
+        failWithoutDelivery(errorCode, errorMessage);
+        this.deliveryStatus = DeliveryStatus.FAILED;
+    }
+
+    /**
+     * 발송이 아닌 작업의 실패 (메일 분석·재판정·초안 생성).
+     *
+     * <p>{@link #deliveryStatus} 를 건드리지 않는다 — 이 클래스 설명대로 그 값은 발송 계열에서만
+     * 채운다. 분석 실패에 「발송 실패」가 함께 찍히면 발송 이력(51·53번)이 그것을 세게 된다.
+     */
+    public void failWithoutDelivery(String errorCode, String errorMessage) {
         this.status = TaskStatus.FAILED;
         this.progressFailed = this.progressTotal;
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
-        this.deliveryStatus = DeliveryStatus.FAILED;
         this.completedAt = now();
+    }
+
+    /** PENDING 으로 만든 작업이 실제로 돌기 시작했다 (202 로 시작한 비동기 작업). */
+    public void markProcessing() {
+        this.status = TaskStatus.PROCESSING;
+        this.startedAt = now();
     }
 }
