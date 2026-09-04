@@ -500,4 +500,61 @@ class SupplierApiTest {
             long id, String body) {
         return patch(BASE + "/{id}", id).contentType(MediaType.APPLICATION_JSON).content(body);
     }
+
+    // ────────────────────────── API 문서 (Swagger) ──────────────────────────
+
+    @Nested
+    @DisplayName("GET /v3/api-docs — API 문서")
+    class ApiDocs {
+
+        /**
+         * springdoc 2.6.0 은 Spring Boot 4.1.1(Framework 7)에서 쉽게 깨진다.
+         * @ControllerAdvice 빈이 하나라도 생기면 이 경로가 NoSuchMethodError 로 500 을 낸다
+         * (SupplierApiExceptionHandling 주석 참고). 그 사고는 앱을 띄우기 전에는 드러나지 않고,
+         * 드러나도 「Swagger 가 안 열리네」로 끝나 원인을 찾는 데 시간이 걸린다.
+         */
+        @Test
+        @DisplayName("문서가 깨지지 않고 열린다 (@ControllerAdvice 가 들어오면 여기서 먼저 깨진다)")
+        void servesApiDocs() throws Exception {
+            mockMvc.perform(get("/v3/api-docs"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers']").exists());
+        }
+
+        /**
+         * <b>막는 쪽이 문서에 남아 있는지 본다.</b>
+         * 이 명세의 완료 조건은 대부분 「~인 경우에만」처럼 막는 쪽에 있는데,
+         * 성공 응답만 문서화하면 화면 담당자는 되는 쪽만 보고 만들게 된다.
+         * 어노테이션을 지우면 이 테스트가 먼저 깨진다.
+         */
+        @Test
+        @DisplayName("등록은 201 과 400 · 409 를 함께 문서화한다")
+        void documentsCreateFailures() throws Exception {
+            mockMvc.perform(get("/v3/api-docs"))
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers'].post.responses.201").exists())
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers'].post.responses.400").exists())
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers'].post.responses.409").exists())
+                    // 등록은 200 이 아니라 201 이다. 문서가 200 이라고 하면 화면이 잘못 분기한다
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers'].post.responses.200").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("수정은 400 · 404 · 409 를 함께 문서화한다 (사유 없는 협력 끊김 포함)")
+        void documentsUpdateFailures() throws Exception {
+            String path = "$.paths['/api/v1/suppliers/{supplierId}'].patch.responses";
+            mockMvc.perform(get("/v3/api-docs"))
+                    .andExpect(jsonPath(path + ".400").exists())
+                    .andExpect(jsonPath(path + ".404").exists())
+                    .andExpect(jsonPath(path + ".409").exists());
+        }
+
+        @Test
+        @DisplayName("조회는 잘못된 파라미터의 400 을 문서화한다 (조용히 무시하지 않는다는 사실을 문서도 말한다)")
+        void documentsQueryFailures() throws Exception {
+            mockMvc.perform(get("/v3/api-docs"))
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers'].get.responses.400").exists())
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers/{supplierId}'].get.responses.400").exists())
+                    .andExpect(jsonPath("$.paths['/api/v1/suppliers/{supplierId}'].get.responses.404").exists());
+        }
+    }
 }

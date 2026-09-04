@@ -1,6 +1,7 @@
 package com.skala.cbam.supplier.controller;
 
 import com.skala.cbam.supplier.error.SupplierErrorCode;
+import com.skala.cbam.supplier.error.SupplierErrorResponse;
 import com.skala.cbam.supplier.error.SupplierException;
 import com.skala.cbam.supplier.domain.SupplierStatus;
 import com.skala.cbam.supplier.dto.PageResponse;
@@ -13,6 +14,11 @@ import com.skala.cbam.supplier.dto.SupplierUpdateRequest;
 import com.skala.cbam.supplier.dto.SupplierUpdateResponse;
 import com.skala.cbam.supplier.service.SupplierService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -37,6 +43,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 협력업체 API (API 명세 №1~№4 · 요구사항 1~6번). Base URL 은 /api/v1(공통 규약 1항).
+ *
+ * <p><b>오류 응답도 성공 응답과 같은 무게로 문서화한다.</b> 이 명세의 완료 조건은 대부분
+ * 「~인 경우에만」처럼 <b>막는 쪽</b>에 있다(중복 등록 불가, 사유 없는 끊김 불가, 허용값 아님).
+ * 문서에 성공만 적어 두면 화면 담당자는 되는 쪽만 보고 만들게 되고, 막히는 순간을 처리하지 못한다.
+ * 아래 예시는 전부 실제 응답을 그대로 옮긴 것이다.
  *
  * <p>X-Operator-Id 헤더를 받지 않는다. 명세 2항이 이 헤더를 "감사 기록용 담당자 식별자이며
  * 인증 수단이 아니다"로 규정했고, 인증·인가 방식 자체가 명세에서 [미정]이다.
@@ -69,6 +80,53 @@ public class SupplierController extends SupplierApiExceptionHandling {
     @Operation(summary = "협력업체 등록",
             description = "협력업체명·사업자등록번호·국가·담당자 정보를 입력해 등록한다. "
                     + "사업자등록번호와 담당자 이메일은 중복 등록할 수 없다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201",
+                    description = "등록됨. Location 헤더에 생성된 협력업체 경로가 온다",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SupplierCreateResponse.class))),
+            @ApiResponse(responseCode = "400",
+                    description = "필수값 누락 · 이메일 형식 오류 · 국가 코드 형식 오류",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = @ExampleObject(name = "INVALID_REQUEST", value = """
+                                    {
+                                      "timestamp": "2026-09-04T08:47:39+09:00",
+                                      "status": 400,
+                                      "code": "INVALID_REQUEST",
+                                      "message": "요청 형식이 올바르지 않습니다",
+                                      "path": "/api/v1/suppliers",
+                                      "details": {
+                                        "fieldErrors": {
+                                          "contactEmail": "담당자 이메일 형식이 올바르지 않습니다",
+                                          "country": "국가는 ISO 3166-1 alpha-2 대문자 2자리여야 합니다"
+                                        }
+                                      }
+                                    }"""))),
+            @ApiResponse(responseCode = "409",
+                    description = "사업자등록번호 또는 담당자 이메일이 이미 등록되어 있다. "
+                            + "이메일은 대소문자를 구분하지 않는다 — 수신 메일 매칭 키이기 때문이다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = {
+                                    @ExampleObject(name = "DUPLICATE_BUSINESS_NUMBER", value = """
+                                            {
+                                              "timestamp": "2026-09-04T08:47:39+09:00",
+                                              "status": 409,
+                                              "code": "DUPLICATE_BUSINESS_NUMBER",
+                                              "message": "이미 등록된 사업자등록번호입니다",
+                                              "path": "/api/v1/suppliers",
+                                              "details": {}
+                                            }"""),
+                                    @ExampleObject(name = "DUPLICATE_CONTACT_EMAIL", value = """
+                                            {
+                                              "timestamp": "2026-09-04T08:47:39+09:00",
+                                              "status": 409,
+                                              "code": "DUPLICATE_CONTACT_EMAIL",
+                                              "message": "이미 등록된 담당자 이메일입니다",
+                                              "path": "/api/v1/suppliers",
+                                              "details": {}
+                                            }""")
+                            }))
+    })
     @PostMapping
     public ResponseEntity<SupplierCreateResponse> createSupplier(
             @Valid @RequestBody SupplierCreateRequest request) {
@@ -79,6 +137,63 @@ public class SupplierController extends SupplierApiExceptionHandling {
     @Operation(summary = "협력업체 수정 · 협력 끊김 처리",
             description = "담당자명·이메일·전화번호를 수정하고 협력 상태를 전환한다. "
                     + "status 를 보내면 상태 전이가, 보내지 않으면 정보 수정만 일어난다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    description = "수정됨. 응답은 <b>바뀐 항목만</b> 준다 — companyName · "
+                            + "businessRegistrationNumber · country 는 포함되지 않는다. "
+                            + "화면은 이 결과로 행을 갈아끼우지 말고 기존 값 위에 덮어써야 한다",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SupplierUpdateResponse.class))),
+            @ApiResponse(responseCode = "400",
+                    description = "사유 없는 협력 끊김(INVALID_REQUEST) 또는 허용값이 아닌 status(INVALID_STATUS). "
+                            + "INACTIVE 로 전환하려면 statusReason 이 반드시 있어야 한다 — "
+                            + "사유 없이 끊긴 업체는 나중에 왜 제외됐는지 설명할 수 없다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = {
+                                    @ExampleObject(name = "INVALID_REQUEST — 사유 없는 협력 끊김", value = """
+                                            {
+                                              "timestamp": "2026-09-04T08:47:47+09:00",
+                                              "status": 400,
+                                              "code": "INVALID_REQUEST",
+                                              "message": "협력 끊김으로 전환하려면 statusReason 이 필요합니다",
+                                              "path": "/api/v1/suppliers/24",
+                                              "details": {
+                                                "fieldErrors": { "statusReason": "협력 끊김 사유는 필수입니다" }
+                                              }
+                                            }"""),
+                                    @ExampleObject(name = "INVALID_STATUS", value = """
+                                            {
+                                              "timestamp": "2026-09-04T08:47:47+09:00",
+                                              "status": 400,
+                                              "code": "INVALID_STATUS",
+                                              "message": "협력 상태는 ACTIVE 또는 INACTIVE 여야 합니다",
+                                              "path": "/api/v1/suppliers/24",
+                                              "details": {}
+                                            }""")
+                            })),
+            @ApiResponse(responseCode = "404", description = "해당 협력업체가 없다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = @ExampleObject(name = "SUPPLIER_NOT_FOUND", value = """
+                                    {
+                                      "timestamp": "2026-09-04T08:47:47+09:00",
+                                      "status": 404,
+                                      "code": "SUPPLIER_NOT_FOUND",
+                                      "message": "협력업체를 찾을 수 없습니다",
+                                      "path": "/api/v1/suppliers/9999",
+                                      "details": {}
+                                    }"""))),
+            @ApiResponse(responseCode = "409", description = "다른 협력업체가 이미 쓰는 담당자 이메일이다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = @ExampleObject(name = "DUPLICATE_CONTACT_EMAIL", value = """
+                                    {
+                                      "timestamp": "2026-09-04T08:47:47+09:00",
+                                      "status": 409,
+                                      "code": "DUPLICATE_CONTACT_EMAIL",
+                                      "message": "이미 등록된 담당자 이메일입니다",
+                                      "path": "/api/v1/suppliers/24",
+                                      "details": {}
+                                    }""")))
+    })
     @PatchMapping("/{supplierId}")
     public ResponseEntity<SupplierUpdateResponse> updateSupplier(
             @PathVariable Long supplierId,
@@ -89,6 +204,42 @@ public class SupplierController extends SupplierApiExceptionHandling {
     @Operation(summary = "협력업체 리스트 조회",
             description = "업체명 검색과 국가·협력상태·적격상태 필터, 정렬을 지원하며 "
                     + "최근 N개월 월별 제출 상태를 함께 반환한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    description = "목록. content · page · size · totalElements · totalPages 다섯 키를 "
+                            + "예외 없이 반환한다(공통 규약 4항). "
+                            + "<b>monthlyStatus 는 제출 도메인이 붙기 전까지 항상 빈 배열이다</b> — "
+                            + "「제출이 없다」가 아니라 「아직 채울 경로가 없다」는 뜻이다"),
+            @ApiResponse(responseCode = "400",
+                    description = "지원하지 않는 정렬 키, 허용값이 아닌 status · submissionStatus, "
+                            + "범위를 벗어난 months(1~24) · size(1~100) · page. "
+                            + "<b>잘못된 값을 조용히 무시하지 않는다</b> — 무시하면 화면이 걸러진 결과로 오해한다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = {
+                                    @ExampleObject(name = "INVALID_PARAMETER — 정렬 키", value = """
+                                            {
+                                              "timestamp": "2026-09-04T08:47:39+09:00",
+                                              "status": 400,
+                                              "code": "INVALID_PARAMETER",
+                                              "message": "요청 파라미터가 올바르지 않습니다",
+                                              "path": "/api/v1/suppliers",
+                                              "details": {
+                                                "fieldErrors": { "sort": "정렬 가능한 필드는 [companyName] 뿐입니다" }
+                                              }
+                                            }"""),
+                                    @ExampleObject(name = "INVALID_PARAMETER — size 상한", value = """
+                                            {
+                                              "timestamp": "2026-09-04T08:47:39+09:00",
+                                              "status": 400,
+                                              "code": "INVALID_PARAMETER",
+                                              "message": "요청 파라미터가 올바르지 않습니다",
+                                              "path": "/api/v1/suppliers",
+                                              "details": {
+                                                "fieldErrors": { "size": "size 는 100 이하여야 합니다" }
+                                              }
+                                            }""")
+                            }))
+    })
     @GetMapping
     public ResponseEntity<PageResponse<SupplierSummaryResponse>> searchSuppliers(
             @RequestParam(required = false) String search,
@@ -118,6 +269,36 @@ public class SupplierController extends SupplierApiExceptionHandling {
     @Operation(summary = "협력업체 상세 조회",
             description = "협력업체 기본정보와 공급 부품 목록, 최근 N개월 제출 이력·수신 경보·"
                     + "피드백 발송 이력을 조회한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    description = "상세. <b>parts · submissions · alerts · feedbackHistories 는 "
+                            + "해당 도메인이 붙기 전까지 항상 빈 배열이다</b> — 키는 생략되지 않는다(공통 규약 9항). "
+                            + "협력 끊김 사유(statusReason)와 끊긴 시각은 이 응답에 포함되지 않는다"),
+            @ApiResponse(responseCode = "400", description = "months 가 1~24 범위를 벗어났거나 형식이 잘못됐다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = @ExampleObject(name = "INVALID_PARAMETER", value = """
+                                    {
+                                      "timestamp": "2026-09-04T08:47:39+09:00",
+                                      "status": 400,
+                                      "code": "INVALID_PARAMETER",
+                                      "message": "요청 파라미터가 올바르지 않습니다",
+                                      "path": "/api/v1/suppliers/1",
+                                      "details": {
+                                        "fieldErrors": { "months": "months 는 24 이하여야 합니다" }
+                                      }
+                                    }"""))),
+            @ApiResponse(responseCode = "404", description = "해당 협력업체가 없다",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SupplierErrorResponse.class),
+                            examples = @ExampleObject(name = "SUPPLIER_NOT_FOUND", value = """
+                                    {
+                                      "timestamp": "2026-09-04T08:47:39+09:00",
+                                      "status": 404,
+                                      "code": "SUPPLIER_NOT_FOUND",
+                                      "message": "협력업체를 찾을 수 없습니다",
+                                      "path": "/api/v1/suppliers/9999",
+                                      "details": {}
+                                    }""")))
+    })
     @GetMapping("/{supplierId}")
     public ResponseEntity<SupplierDetailResponse> getSupplierDetail(
             @PathVariable Long supplierId,
