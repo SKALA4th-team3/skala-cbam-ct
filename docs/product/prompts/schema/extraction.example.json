@@ -13,7 +13,7 @@
       "conversionFailReason": null,
       "note": "등록 부품 「열연코일」과 CN 7208 대역이 같아 매칭했다. 괄호 안 두께는 규격이라 제외했다",
       "confidence": 0.86,
-      "source": { "attachmentId": null, "locator": "body:line=2" }
+      "source": { "attachmentId": null, "locator": "body:offset=48-72" }
     },
     {
       "key": "production",
@@ -49,7 +49,7 @@
       "conversionFailReason": "UNIT_NOT_RECOGNIZED",
       "note": "단위가 적혀 있지 않아 t 인지 GJ 인지 알 수 없다 — 변환하지 않고 비웠다",
       "confidence": 0.55,
-      "source": { "attachmentId": null, "locator": "body:line=3" }
+      "source": { "attachmentId": null, "locator": "body:offset=10-20" }
     },
     {
       "key": "fuel_natural_gas",
