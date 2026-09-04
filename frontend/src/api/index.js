@@ -11,7 +11,12 @@
       원본(xlsx)이 없어 №2·№5~12·№16·№27~29 의 정확한 경로를 대조하지 못했다 — API-CONTRACT.md 에 남겼다. */
 import { request, page, startTask, getTask, http, ApiError } from './client'
 import { toServer, toCode } from './enums'
-import { supplierToServer, supplierRowFromServer, supplierDetailFromServer } from './shapes'
+import {
+  supplierToServer, supplierRowFromServer, supplierDetailFromServer,
+  partRowFromServer, partDetailFromServer,
+  productRowFromServer, productDetailFromServer,
+  submissionRowFromServer,
+} from './shapes'
 import { suppliers, parts } from '@/mocks/seed'
 import {
   NOW, PRODUCTS, INBOX, SUBMISSIONS, DEADLINES, REMINDER_LOG, DISPATCH,
@@ -243,6 +248,11 @@ export const Parts = {
     if (q.supplier?.length) rows = rows.filter(p => q.supplier.includes(p.supplier))
     if (q.cn?.length) rows = rows.filter(p => q.cn.includes(p.cnGroup))
     return page(rows, { ...q, size: q.size ?? 50 })
+  }, async () => {
+    const res = await http('GET', '/parts', {
+      query: { search: q.q, supplierId: q.supplierId, cnCode: q.cn?.[0], page: 0, size: 100 },
+    })
+    return { ...res, content: (res.content ?? []).map(partRowFromServer) }
   }),
   /** GET /parts/{partId} — 10번 단일 조회 (명세 №5~8 중 하나 — 번호 확인 필요) */
   get: id => request('GET /parts/{partId}', () => {
@@ -253,7 +263,7 @@ export const Parts = {
       confirmedData: confirmedDataOf(p),
       usedIn: PRD.filter(pr => pr.bom.some(b => b.part === p.name)).map(pr => ({ id: pr.id, name: pr.name })),
     }
-  }),
+  }, async () => partDetailFromServer(await http('GET', `/parts/${id}`))),
   /** №5 POST /parts — 7번. `resolves` 를 주면 그 제출 건의 미등록 부품을 해소한다 (28번) */
   create: body => request('POST /parts', () => {
     need(body, [['name', '부품명'], ['cn', 'CN 코드'], ['supplier', '공급 협력업체'], ['unit', '단위']])
@@ -304,13 +314,22 @@ export const Products = {
     if (q.q) rows = rows.filter(p => p.name.includes(q.q))
     if (q.cn?.length) rows = rows.filter(p => q.cn.includes(p.cnGroup))
     return page(rows, { ...q, size: q.size ?? 20 })
+  }, async () => {
+    const res = await http('GET', '/products', {
+      query: {
+        search: q.q, cnCode: q.cn?.[0], reportingMonth: q.reportingMonth,
+        calculationStatus: q.calculationStatus, page: 0, size: 100,
+      },
+    })
+    return { ...res, content: (res.content ?? []).map(productRowFromServer) }
   }),
   /** №12 GET /products/{productId} — 상세와 내재배출량(15번)을 한 번에 준다 (v10에서 통합) */
-  get: id => request('GET /products/{productId}', () => {
+  get: (id, q = {}) => request('GET /products/{productId}', () => {
     const p = PRD.find(x => x.id === id)
     if (!p) throw new ApiError(404, 'PRODUCT_NOT_FOUND', '없는 완제품입니다')
     return { ...productRow(p), ...emissionsOf(p) }
-  }),
+  }, async () => productDetailFromServer(
+    await http('GET', `/products/${id}`, { query: { reportingMonth: q?.reportingMonth } }))),
   /** POST /products — 12번 등록 (명세 №9 로 추정 — 확인 필요) */
   create: body => request('POST /products', () => {
     need(body, [['name', '제품명'], ['cn', 'CN 코드'], ['euCountry', '수출 대상 EU 회원국'], ['tons', '연간 수출량']])
@@ -416,6 +435,15 @@ export const Review = {
     }))
     if (q.status) rows = rows.filter(r => r.status === q.status)
     return page(rows, { size: 100 })
+  }, async () => {
+    const res = await http('GET', '/submissions', {
+      query: {
+        supplierId: q.supplierId, partId: q.partId, reportingMonth: q.reportingMonth,
+        status: q.status, judgement: q.judgement, severity: q.severity,
+        page: 0, size: 100,
+      },
+    })
+    return { ...res, content: (res.content ?? []).map(submissionRowFromServer) }
   }),
   /** №22 POST /submissions/{submissionId}/confirm — 31번 「판정이 적격이고 미등록 부품이 없는 경우에만」 */
   confirm: id => request('POST /submissions/{submissionId}/confirm', () => {
@@ -432,7 +460,7 @@ export const Review = {
     const sup = SUP.find(x => x.id === s.supplierId)
     if (sup) { sup.judgement = '적격'; sup.strip = sup.strip.slice(0, -1) + '0' }
     return { submissionId: id, status: 'CONFIRMED', confirmedBy: s.confirmedBy, confirmedAt: s.confirmedAt }
-  }),
+  }, async () => http('POST', `/submissions/${id}/confirm`, { body: {} })),
   /** №23 POST /submissions/{submissionId}/reject — 32번 「상태를 부적격/미제출로 설정하고 사유 저장」 */
   reject: (id, reason, reasonCode = 'MISSING_REQUIRED_FIELD', resultStatus = 'REJECTED') =>
     request('POST /submissions/{submissionId}/reject', () => {
@@ -449,7 +477,9 @@ export const Review = {
         submissionId: id, status: resultStatus, judgement: 'UNQUALIFIED',
         reasonCode, reason, rejectedBy: s.rejectedBy, rejectedAt: s.rejectedAt,
       }
-    }),
+    }, async () => http('POST', `/submissions/${id}/reject`, {
+      body: { resultStatus, reasonCode, reason, createFeedbackDraft: true },
+    })),
 }
 
 /* ── 제출 마감 (명세 №13~14 · 요구사항 16·17번) ──────────── */

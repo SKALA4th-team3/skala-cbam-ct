@@ -14,12 +14,25 @@ export const SUPPLIER_TIE = {
   INACTIVE: '협력끊김',
 }
 
-/** 제출 데이터 판정 — 요구사항 「상태값」 · API 명세 v10 SubmissionStatus */
-export const SUBMISSION_JUDGEMENT = {
+/** 제출 데이터의 **처리 단계** — API 명세 v10 SubmissionStatus.
+ *  명세 「코드·Enum 정의」 시트가 축을 갈라 두었다:
+ *    status    = 자료가 어디까지 왔는가 (아래 넷)
+ *    judgement = 적격 판정 결과 (QUALIFIED · UNQUALIFIED)
+ *  「두 값 집합은 겹치지 않는다」 — v9 가 status 에 UNQUALIFIED 를 넣어 의미가 겹쳤던 것을 v10 이 나눴다.
+ *
+ *  ⚠️ CONFIRMED · REJECTED 가 빠져 있었다. 실서버를 붙이니 확정 응답의 status 가
+ *     한글로 바뀌지 않고 'CONFIRMED' 인 채로 화면까지 올라왔다 (2026-09-04 확인). */
+export const SUBMISSION_STATUS = {
+  NOT_SUBMITTED: '미제출',
   REVIEW_PENDING: '검토 대기',
+  CONFIRMED: '확정',
+  REJECTED: '반려',
+}
+
+/** 제출 데이터 **판정** — API 명세 v10 Judgement (요구사항 36번이 부여한다) */
+export const SUBMISSION_JUDGEMENT = {
   QUALIFIED: '적격',
   UNQUALIFIED: '부적격',
-  NOT_SUBMITTED: '미제출',
 }
 
 /** 심각도 — 요구사항도 영문이라 변환할 것이 없다 (R1~R7 → 36번이 부여한다) */
@@ -68,7 +81,7 @@ export const ANALYSIS_FAILURE = {
        요구사항의 「수정본」이 status 인지 source 인지 갈리지 않는다. 팀 확인 대기 */
 
 /** enum → 한글 */
-const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_JUDGEMENT, ...COUNTRY, ...MAIL_RECEIPT_STATUS }
+const LABEL = { ...SUPPLIER_TIE, ...SUBMISSION_STATUS, ...SUBMISSION_JUDGEMENT, ...COUNTRY, ...MAIL_RECEIPT_STATUS }
 /** 한글 → enum */
 const CODE = Object.fromEntries(Object.entries(LABEL).map(([code, label]) => [label, code]))
 
