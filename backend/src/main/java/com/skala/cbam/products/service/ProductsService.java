@@ -138,13 +138,14 @@ public class ProductsService {
                 .mapToObj(index -> {
                     ProductPartData item = data.get(index);
                     BigDecimal contribution = isConfirmed(item)
-                            ? multiply(item.emissionIntensity(),
+                            ? multiply(item.confirmedEmissionIntensity(),
                                     product.getParts().get(index).getInputQtyPerTon())
                             : null;
                     return new ProductDetailResponse.PartResponse(
                             item.partId(), item.partName(), item.supplierId(),
                             item.supplierName(), product.getParts().get(index).getInputQtyPerTon(),
-                            item.submissionStatus(), item.emissionIntensity(), contribution);
+                            item.submissionStatus(), item.confirmedEmissionIntensity(),
+                            contribution);
                 })
                 .toList();
         List<Long> missingPartIds = data.stream()
@@ -163,7 +164,9 @@ public class ProductsService {
     private ProductListResponse.Item toListItem(Product product, YearMonth month) {
         Calculation calculation = calculate(product,
                 relatedDataProvider.getProductPartData(product.getParts(), month));
+        // 평균값을 모르거나(벤치마크 미등록 부품) 0 이면 「평균값 대비」를 낼 수 없다.
         BigDecimal gapRatio = calculation.actualEmission() == null
+                || calculation.benchmarkEmission() == null
                 || calculation.benchmarkEmission().signum() == 0
                 ? null
                 : calculation.actualEmission().subtract(calculation.benchmarkEmission())
@@ -179,17 +182,24 @@ public class ProductsService {
         BigDecimal benchmark = BigDecimal.ZERO;
         BigDecimal actual = BigDecimal.ZERO;
         int unconfirmed = 0;
+        // 벤치마크 팩터가 없는 부품이 하나라도 있으면 제품의 평균값 합계를 알 수 없다.
+        // 14번의 핵심이 「평균값 대비 실측값」이라 0 으로 때우면 비교가 조용히 틀어진다 — 비워서 내보낸다.
+        boolean benchmarkKnown = true;
         Set<Integer> factorYears = new HashSet<>();
         Set<BigDecimal> defaultValueRatios = new HashSet<>();
         for (int index = 0; index < product.getParts().size(); index++) {
             BigDecimal quantity = product.getParts().get(index).getInputQtyPerTon();
             ProductPartData item = data.get(index);
-            benchmark = benchmark.add(multiply(item.benchmarkFactor(), quantity));
+            if (item.benchmarkFactor() == null) {
+                benchmarkKnown = false;
+            } else {
+                benchmark = benchmark.add(multiply(item.benchmarkFactor(), quantity));
+            }
             if (!isConfirmed(item)) {
                 unconfirmed++;
                 continue;
             }
-            BigDecimal contribution = multiply(item.emissionIntensity(), quantity);
+            BigDecimal contribution = multiply(item.confirmedEmissionIntensity(), quantity);
             actual = actual.add(contribution);
             if (item.defaultValueRatio() != null) {
                 defaultValueRatios.add(item.defaultValueRatio().stripTrailingZeros());
@@ -203,15 +213,20 @@ public class ProductsService {
                 ? factorYears.iterator().next() : null;
         BigDecimal defaultValueRatio = complete && defaultValueRatios.size() == 1
                 ? defaultValueRatios.iterator().next() : null;
-        return new Calculation(benchmark.setScale(4, RoundingMode.HALF_UP),
+        return new Calculation(
+                benchmarkKnown ? benchmark.setScale(4, RoundingMode.HALF_UP) : null,
                 complete ? actual.setScale(4, RoundingMode.HALF_UP) : null,
                 complete ? ProductCalculationStatus.COMPLETE : ProductCalculationStatus.INCOMPLETE,
                 unconfirmed, factorYear, defaultValueRatio);
     }
 
+    /**
+     * 계산에 넣을 수 있는 부품인지. 표시 상태(REVIEW_PENDING 등)가 아니라 <b>확정 배출데이터의 유무</b>로
+     * 판단한다 — 확정 뒤 재제출이 들어와도 이미 확정된 값은 살아 있어야 한다(요구사항 №15·№31).
+     * 확정 건이어도 생산량이 0 이면 원단위를 낼 수 없어 null 이고, 그때는 미확정으로 센다.
+     */
     private boolean isConfirmed(ProductPartData data) {
-        return "CONFIRMED".equals(data.submissionStatus())
-                && data.emissionIntensity() != null;
+        return data.confirmedEmissionIntensity() != null;
     }
 
     private BigDecimal multiply(BigDecimal left, BigDecimal right) {

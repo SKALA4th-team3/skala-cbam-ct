@@ -11,6 +11,7 @@ import com.skala.cbam.products.domain.ProductPart;
 import com.skala.cbam.products.repository.ProductSubmissionRepository;
 import com.skala.cbam.products.service.port.ProductRelatedDataProvider;
 import com.skala.cbam.submission.domain.Submission;
+import com.skala.cbam.submission.domain.SubmissionStatus;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.repository.SupplierRepository;
 import java.time.YearMonth;
@@ -57,26 +58,35 @@ public class JpaProductRelatedDataProvider implements ProductRelatedDataProvider
                 .map(productPart -> productPart.getPartSupplier().getId())
                 .collect(Collectors.toSet());
 
-        Map<Long, Submission> latestSubmissionByRelation = new LinkedHashMap<>();
+        // 한 번 읽은 목록에서 표시용(최신)과 계산용(최신 확정)을 각각 골라 낸다 — 쿼리를 더 늘리지 않는다.
+        // submittedAt DESC 정렬이라 먼저 만나는 것이 각각의 최신이다.
+        Map<Long, Submission> latestByRelation = new LinkedHashMap<>();
+        Map<Long, Submission> latestConfirmedByRelation = new LinkedHashMap<>();
         productSubmissionRepository
                 .findByPartSupplierIdInAndReportingMonthOrderBySubmittedAtDesc(
                         relationIds, reportingMonth.atDay(1))
-                .forEach(submission -> latestSubmissionByRelation.putIfAbsent(
-                        submission.getPartSupplierId(), submission));
+                .forEach(submission -> {
+                    latestByRelation.putIfAbsent(submission.getPartSupplierId(), submission);
+                    if (submission.getStatus() == SubmissionStatus.CONFIRMED) {
+                        latestConfirmedByRelation.putIfAbsent(
+                                submission.getPartSupplierId(), submission);
+                    }
+                });
 
         return productParts.stream().map(productPart -> {
             PartSupplier relation = productPart.getPartSupplier();
             Part part = relation.getPart();
             Supplier supplier = suppliersById.get(relation.getSupplierId());
-            Submission submission = latestSubmissionByRelation.get(relation.getId());
+            Submission latest = latestByRelation.get(relation.getId());
+            Submission confirmed = latestConfirmedByRelation.get(relation.getId());
             return new ProductPartData(
                     part.getId(), part.getPartName(), relation.getSupplierId(),
                     supplier == null ? null : supplier.getName(), relation.getId(),
                     part.getBenchmarkFactor(),
-                    submission == null ? "NOT_SUBMITTED" : submission.getStatus().name(),
-                    submission == null ? null : submission.calculateEmissionIntensity(),
-                    submission == null ? null : submission.getAppliedFactorYear(),
-                    submission == null ? null : submission.getDefaultValueRatio());
+                    latest == null ? "NOT_SUBMITTED" : latest.getStatus().name(),
+                    confirmed == null ? null : confirmed.calculateEmissionIntensity(),
+                    confirmed == null ? null : confirmed.getAppliedFactorYear(),
+                    confirmed == null ? null : confirmed.getDefaultValueRatio());
         }).toList();
     }
 

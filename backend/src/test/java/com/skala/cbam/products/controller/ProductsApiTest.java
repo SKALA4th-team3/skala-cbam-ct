@@ -1,6 +1,17 @@
 package com.skala.cbam.products.controller;
 
 import com.jayway.jsonpath.JsonPath;
+import com.skala.cbam.parts.entity.PartSupplierStatus;
+import com.skala.cbam.parts.repository.PartSupplierRepository;
+import com.skala.cbam.submission.domain.Judgement;
+import com.skala.cbam.submission.domain.Submission;
+import com.skala.cbam.submission.domain.SubmissionStatus;
+import com.skala.cbam.submission.repository.SubmissionRepository;
+import com.skala.cbam.supplier.repository.SupplierRepository;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +34,15 @@ class ProductsApiTest {
 
     @Autowired
     private WebApplicationContext context;
+
+    @Autowired
+    private PartSupplierRepository partSupplierRepository;
+
+    @Autowired
+    private SupplierRepository supplierRepository;
+
+    @Autowired
+    private SubmissionRepository submissionRepository;
 
     private MockMvc mockMvc;
 
@@ -161,6 +181,72 @@ class ProductsApiTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void 확정_뒤_재제출이_들어와도_확정된_내재배출량은_유지된다() throws Exception {
+        long supplierId = createSupplier();
+        long partId = createPart(supplierId);
+        long productId = createProduct(partId, supplierId);
+        long partSupplierId = partSupplierId(partId, supplierId);
+
+        // 당월 확정 제출 — 원단위 (1500+400)/1000 = 1.9, 투입량 1.250 → 2.3750
+        saveSubmission(supplierId, partSupplierId, SubmissionStatus.CONFIRMED,
+                at(2026, 9, 2), new BigDecimal("1500.000"), new BigDecimal("400.000"));
+
+        mockMvc.perform(get("/api/v1/products/{id}", productId)
+                        .param("reportingMonth", "2026-09"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.calculationStatus").value("COMPLETE"))
+                .andExpect(jsonPath("$.embeddedEmission").value(2.3750));
+
+        // 같은 부품×보고월에 더 늦은 심사 대기 재제출이 들어온다 (32번 반려 · 50번 피드백 뒤의 정상 흐름)
+        saveSubmission(supplierId, partSupplierId, SubmissionStatus.REVIEW_PENDING,
+                at(2026, 9, 20), new BigDecimal("9999.000"), new BigDecimal("0.000"));
+
+        mockMvc.perform(get("/api/v1/products/{id}", productId)
+                        .param("reportingMonth", "2026-09"))
+                .andExpect(status().isOk())
+                // 확정 배출데이터는 그대로 살아 있어야 한다 — 심사 전 9.999 로 덮이면 안 된다
+                .andExpect(jsonPath("$.calculationStatus").value("COMPLETE"))
+                .andExpect(jsonPath("$.embeddedEmission").value(2.3750))
+                .andExpect(jsonPath("$.missingPartIds").isEmpty())
+                // 부품 상태는 최신 제출을 그대로 보여 준다 (요구사항 12번 부품 세부 ④)
+                .andExpect(jsonPath("$.parts[0].status").value("REVIEW_PENDING"))
+                .andExpect(jsonPath("$.parts[0].emissionIntensity").value(1.9000));
+
+        mockMvc.perform(get("/api/v1/products")
+                        .param("reportingMonth", "2026-09")
+                        .param("calculationStatus", "COMPLETE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    private long partSupplierId(long partId, long supplierId) {
+        return partSupplierRepository
+                .findByPartIdAndSupplierIdAndStatus(partId, supplierId, PartSupplierStatus.ACTIVE)
+                .orElseThrow()
+                .getId();
+    }
+
+    private void saveSubmission(long supplierId, long partSupplierId, SubmissionStatus status,
+                                OffsetDateTime submittedAt, BigDecimal direct, BigDecimal indirect) {
+        submissionRepository.save(Submission.builder()
+                .supplier(supplierRepository.findById(supplierId).orElseThrow())
+                .partSupplierId(partSupplierId)
+                .reportingMonth(YearMonth.of(2026, 9).atDay(1))
+                .productionQuantityTon(new BigDecimal("1000.000"))
+                .directEmissionTco2e(direct)
+                .indirectEmissionTco2e(indirect)
+                .status(status)
+                .judgement(status == SubmissionStatus.CONFIRMED ? Judgement.QUALIFIED : null)
+                .submittedAt(submittedAt)
+                .build());
+        submissionRepository.flush();
+    }
+
+    private OffsetDateTime at(int year, int month, int day) {
+        return OffsetDateTime.of(year, month, day, 10, 0, 0, 0, ZoneOffset.ofHours(9));
     }
 
     private long createSupplier() throws Exception {
