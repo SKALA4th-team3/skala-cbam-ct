@@ -67,7 +67,7 @@ public class Supplier {
     private String name;
 
     /** 협력업체 소재 국가. ISO 3166-1 alpha-2. */
-    @Column(name = "country_code", nullable = false, length = 2)
+    @Column(name = "country_code", nullable = false, length = 2, columnDefinition = "CHAR(2)")
     private String countryCode;
 
     @Column(name = "contact_name", nullable = false, length = 60)

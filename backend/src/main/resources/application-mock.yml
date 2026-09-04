@@ -1,0 +1,7 @@
+spring:
+  config:
+    activate:
+      on-profile: mock
+  sql:
+    init:
+      data-locations: classpath:db/mock-data-h2.sql

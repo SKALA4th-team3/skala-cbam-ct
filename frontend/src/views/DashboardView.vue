@@ -41,7 +41,6 @@ const dDay = computed(() => S.value?.dDay ?? 0)
 const leftPct = computed(() => Math.max(0, Math.min(100, dDay.value / 30 * 100)))
 /* 지난달 대비 — 손으로 적지 않고 추이에서 뺀다. 내려갔으면 내려갔다고 말한다 */
 const delta = computed(() => { const t = S.value?.trend ?? []; return t.length > 1 ? t.at(-1) - t.at(-2) : 0 })
-const when = computed(() => S.value?.lastRecalcAt ? S.value.lastRecalcAt.slice(0, 16).replace('T', ' ') : '')
 
 /* 40번 — 월별 판정 현황. 현재 달이 기본값이다 */
 const pickedMonth = ref(null)
@@ -59,7 +58,6 @@ async function draftAll() {
 <template>
   <SubTabs :tabs="[{ label: '요약', to: '/' }, { label: '마감', to: '/deadlines', count: S?.dDay != null ? `D-${S.dDay}` : null }]" />
   <div class="brief stage" style="--d:0ms">
-    <div class="when"><i></i>{{ board.recalculated ? '방금 재판정' : `마지막 재판정 ${when}` }}</div>
     <h1 v-if="S">
       <RevealText>미제출 <b><CountUp :value="j.미제출" suffix="곳" /></b>,
         <template v-if="S.longMissing">그중 <b>{{ S.longMissing }}곳</b>은 {{ S.longestRun }}개월째 답이 없습니다.</template>
@@ -69,9 +67,6 @@ async function draftAll() {
     <h1 v-else class="shim">집계를 세는 중입니다</h1>
     <p v-if="S">마감까지 <b><CountUp :value="dDay" suffix="일" /></b> 남았고, 협력 중인 {{ j.total }}곳 가운데 적격 {{ j.적격 }} · 부적격 {{ j.부적격 }} · 미제출 {{ j.미제출 }}입니다.</p>
     <div class="acts">
-      <button class="quiet" :disabled="board.loading" @click="board.reload()">
-        <span :class="{ shim: board.loading }">{{ board.loading ? '재판정 중' : '재판정' }}</span>
-      </button>
       <button class="tactile sm" :disabled="!S?.draftable" @click="draftAll">
         <span class="plate"></span><span class="cap">{{ S?.draftable ? `초안 ${S.draftable}건 일괄 생성` : '만들 초안이 없습니다' }}</span>
       </button>

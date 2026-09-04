@@ -30,7 +30,7 @@ public class ProductExportCountry extends BaseTimeEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "country_code", nullable = false, length = 2)
+    @Column(name = "country_code", nullable = false, length = 2, columnDefinition = "CHAR(2)")
     private String countryCode;
 
     ProductExportCountry(Product product, String countryCode) {

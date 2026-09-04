@@ -71,7 +71,7 @@ public class ExtractionField {
     @Column(name = "normalized_date")
     private LocalDate normalizedDate;
 
-    @Column(name = "normalized_country_code", length = 2)
+    @Column(name = "normalized_country_code", length = 2, columnDefinition = "CHAR(2)")
     private String normalizedCountryCode;
 
     @Column(name = "unit", length = 30)
