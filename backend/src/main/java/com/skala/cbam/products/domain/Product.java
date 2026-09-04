@@ -35,7 +35,7 @@ public class Product extends BaseTimeEntity {
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(nullable = false, length = 8)
+    @Column(nullable = false, length = 8, columnDefinition = "CHAR(8)")
     private String cnCode;
 
     @Column(nullable = false, precision = 12, scale = 2)
