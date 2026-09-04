@@ -83,7 +83,7 @@ public class Submission {
     @Column(name = "production_quantity_ton", precision = 14, scale = 3)
     private BigDecimal productionQuantityTon;
 
-    @Column(name = "production_country_code", length = 2)
+    @Column(name = "production_country_code", length = 2, columnDefinition = "CHAR(2)")
     private String productionCountryCode;
 
     @Column(name = "direct_emission_tco2e", precision = 14, scale = 3)

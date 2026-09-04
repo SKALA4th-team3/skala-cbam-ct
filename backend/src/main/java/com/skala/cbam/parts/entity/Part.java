@@ -43,7 +43,7 @@ public class Part {
     @Column(name = "name", nullable = false, unique = true)
     private String partName;
 
-    @Column(nullable = false, length = 8)
+    @Column(nullable = false, length = 8, columnDefinition = "CHAR(8)")
     private String cnCode;
 
     @Enumerated(EnumType.STRING)

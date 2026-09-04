@@ -76,7 +76,7 @@ npm run api:real           # 실서버 계약 검사 — BE 가 8080 에 떠 있
 `.env` 에 `AI_API_KEY` 를 채우고 BE 를 띄운 뒤, **미확인 접수 건을 협력업체에 연결**하면
 그 즉시 분석이 자동으로 돈다(요구사항 20번).
 
-H2에는 샘플 데이터를 자동 입력하지 않는다. 먼저 API로 협력업체와 미확인 접수 데이터를 준비한 뒤 실제 ID로 요청한다.
+기본 실행에는 샘플 데이터를 넣지 않는다. 샘플 데이터가 필요하면 아래 `dev,mock` 프로필로 실행한다.
 
 ```bash
 curl -X PATCH localhost:8080/api/v1/mail-receipts/{mailReceiptId}/supplier \
@@ -94,6 +94,8 @@ curl localhost:8080/api/v1/tasks/tsk-…      # PENDING → COMPLETED (10초 안
 ### H2 프로필
 
 기본 `dev` 프로필은 인메모리 DB를 사용한다. 애플리케이션을 종료하면 데이터가 사라지므로 개발과 테스트에 적합하다.
+[`schema-h2.sql`](backend/src/main/resources/db/schema-h2.sql)이 `ref/ERD_v10.gj.md`의 16개 테이블을 만들고,
+Hibernate의 `validate`가 엔티티 매핑과 스키마가 어긋나지 않는지 시작할 때 검사한다.
 
 ```bash
 cd backend
@@ -107,6 +109,35 @@ cd backend
 | JDBC URL | `jdbc:h2:mem:cbam` |
 | User Name | `sa` |
 | Password | 비워 둠 |
+
+### Mock 데이터로 실행
+
+Mock 데이터는 팀 공용 SQL 파일인
+[`mock-data-h2.sql`](backend/src/main/resources/db/mock-data-h2.sql)에 있다. 기본 실행에는 들어가지 않으며,
+필요한 팀원만 다음처럼 `mock` 프로필을 함께 켠다.
+
+macOS/Linux:
+
+```bash
+cd backend
+SPRING_PROFILES_ACTIVE=dev,mock ./gradlew bootRun
+```
+
+Windows PowerShell:
+
+```powershell
+cd backend
+$env:SPRING_PROFILES_ACTIVE = "dev,mock"
+.\gradlew.bat bootRun
+```
+
+샘플 ID는 충돌 가능성을 낮추기 위해 `10001`부터 시작한다. SQL은 `MERGE ... KEY(...)`를 사용하므로
+같은 인메모리 DB에 다시 실행해도 같은 ID의 행이 중복 생성되지 않는다. 모든 이메일은 실제 주소가 아닌
+`example.test` 도메인을 사용한다.
+
+`dev` DB는 **프로세스별 인메모리 DB**라서 팀원이 하나의 DB를 공유하는 방식은 아니다. 대신 모든 팀원이
+같은 스키마와 mock SQL을 Git으로 공유하고 각자 동일한 DB를 재현한다. 데이터를 재시작 후에도 유지하려면
+아래 `prod` 파일 프로필을 사용한다. 하나의 H2 파일을 여러 PC가 동시에 공유하는 용도로는 사용하지 않는다.
 
 `prod` 프로필은 파일 DB를 사용해 재시작 후에도 데이터를 보존한다. 별도 DB 서버나 Docker는 필요하지 않다.
 
@@ -132,7 +163,7 @@ DB_URL='jdbc:h2:file:/원하는/경로/cbam;DB_CLOSE_ON_EXIT=FALSE' \
 SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 ```
 
-`prod`에서도 Hibernate가 ERD에 대응하는 엔티티를 기준으로 스키마를 갱신한다. 데이터 파일을 삭제하면 저장된 데이터를 복구할 수 없으므로 초기화 목적이 아니라면 `backend/data/`를 지우지 않는다.
+`prod`에서도 공용 SQL로 스키마를 만들고 Hibernate가 엔티티 매핑을 검증한다. 데이터 파일을 삭제하면 저장된 데이터를 복구할 수 없으므로 초기화 목적이 아니라면 `backend/data/`를 지우지 않는다.
 
 ## 개발 시작할 때
 
