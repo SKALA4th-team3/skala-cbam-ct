@@ -3,9 +3,13 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: "${DB_URL}"
-    username: "${DB_USERNAME}"
-    password: "${DB_PASSWORD}"
+    driver-class-name: org.h2.Driver
+    url: "${DB_URL:jdbc:h2:file:./data/cbam;DB_CLOSE_ON_EXIT=FALSE}"
+    username: "${DB_USERNAME:sa}"
+    password: "${DB_PASSWORD:}"
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
+  h2:
+    console:
+      enabled: false

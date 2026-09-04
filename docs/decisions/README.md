@@ -44,7 +44,7 @@ docs/decisions/0001-ai-response-schema.md
 | [ADR-0001](0001-outlier-threshold.md) | 이상치 판정을 ±30% 고정으로 한다 (34번 · R4) |
 | [ADR-0002](0002-project-scaffold.md) | 초기 구조 — backend/frontend 분리 · Gradle · JavaScript |
 | [ADR-0003](0003-branch-name-jira-key.md) | 브랜치 이름을 Jira 이슈 키 하나로 한다 (`CBAM-43`) |
-| [ADR-0004](0004-database-profiles.md) | PostgreSQL 운영 DB · 프로필별 스키마 검증 정책 |
+| [ADR-0004](0004-database-profiles.md) | H2 개발·운영 DB · 프로필별 저장 정책 |
 | [ADR-0005](0005-status-enum-boundary.md) | 상태값은 서버가 영문 enum · 화면이 한글 — 변환은 FE 경계 한 곳 |
 | [ADR-0006](0006-no-auth-internal-network.md) | 인증·인가를 넣지 않는다 — 사내망을 신뢰 경계로 둔다 |
 | [ADR-0007](0007-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |

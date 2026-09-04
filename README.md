@@ -30,55 +30,50 @@ cd backend  && ./gradlew bootRun            # http://localhost:8080
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-개발 환경은 기본 `dev` 프로필의 H2 인메모리를 사용한다. 운영 환경은 PostgreSQL을 사용한다 — [ADR-0004](docs/decisions/0004-database-profiles.md).
+개발과 운영 환경 모두 H2를 사용한다 — [ADR-0004](docs/decisions/0004-database-profiles.md).
 
-### 운영 PostgreSQL
+### H2 프로필
 
-루트의 `.env.example`을 `.env`로 복사하고 DB 값을 채운 뒤, Docker Desktop을 실행한다.
+기본 `dev` 프로필은 인메모리 DB를 사용한다. 애플리케이션을 종료하면 데이터가 사라지므로 개발과 테스트에 적합하다.
 
 ```bash
-docker compose up -d
-docker compose ps
-docker compose logs -f postgres
+cd backend
+./gradlew bootRun
 ```
 
-Docker Compose는 루트의 `.env`를 읽지만 Spring Boot는 이 파일을 자동으로 읽지 않는다. PostgreSQL에 애플리케이션을 연결하려면 `.env`의 값을 환경 변수로 불러오고 `prod` 프로필로 실행한다.
+개발 중에는 `http://localhost:8080/h2-console`에서 DB를 확인할 수 있다.
+
+| 항목 | 값 |
+| --- | --- |
+| JDBC URL | `jdbc:h2:mem:cbam` |
+| User Name | `sa` |
+| Password | 비워 둠 |
+
+`prod` 프로필은 파일 DB를 사용해 재시작 후에도 데이터를 보존한다. 별도 DB 서버나 Docker는 필요하지 않다.
 
 macOS/Linux:
 
 ```bash
-set -a
-source .env
-set +a
-export SPRING_PROFILES_ACTIVE=prod
-cd backend && ./gradlew bootRun
+cd backend
+SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 ```
 
 Windows PowerShell:
 
 ```powershell
+cd backend
 $env:SPRING_PROFILES_ACTIVE = "prod"
-$env:DB_URL = "jdbc:postgresql://localhost:5432/cbam"
-$env:DB_USERNAME = "<.env의 DB_USERNAME>"
-$env:DB_PASSWORD = "<.env의 DB_PASSWORD>"
-cd backend; .\gradlew.bat bootRun
+.\gradlew.bat bootRun
 ```
 
-`DB_PORT` 또는 `POSTGRES_DB`를 기본값에서 변경했다면 `DB_URL`도 같은 포트와 DB 이름을 가리켜야 한다.
-
-컨테이너를 중지하고 제거하되 DB 데이터를 유지하려면 다음 명령을 사용한다.
+기본 데이터 파일은 `backend/data/cbam.mv.db`에 생성된다. 저장 위치를 바꿀 때만 `DB_URL`에 H2 파일 JDBC URL을 지정한다.
 
 ```bash
-docker compose down
+DB_URL='jdbc:h2:file:/원하는/경로/cbam;DB_CLOSE_ON_EXIT=FALSE' \
+SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 ```
 
-DB 데이터까지 초기화할 때만 `--volumes`를 붙인다. **이 명령은 PostgreSQL 데이터를 복구할 수 없게 삭제한다.**
-
-```bash
-docker compose down --volumes
-```
-
-운영 프로필의 Hibernate는 `ddl-auto=validate`이므로 테이블을 자동 생성하지 않는다. 현재는 초기 운영 스키마가 준비되지 않아 `missing table [supplier]` 오류로 애플리케이션 기동이 실패한다. 초기 스키마를 별도 절차로 준비한 뒤 실행해야 한다.
+`prod`에서도 Hibernate가 ERD에 대응하는 엔티티를 기준으로 스키마를 갱신한다. 데이터 파일을 삭제하면 저장된 데이터를 복구할 수 없으므로 초기화 목적이 아니라면 `backend/data/`를 지우지 않는다.
 
 ## 개발 시작할 때
 
