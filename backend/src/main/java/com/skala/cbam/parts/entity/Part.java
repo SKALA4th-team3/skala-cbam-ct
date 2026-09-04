@@ -1,15 +1,14 @@
 package com.skala.cbam.parts.entity;
 
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,11 +18,11 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * supplierIds는 Supplier 엔티티를 참조하지 않고 순수 id 목록으로만 저장한다.
- * Supplier 도메인이 아직 없어(다른 브랜치에서 작업 중) 컴파일·부팅이 가능하도록 임시로 이렇게 결합을 낮춰 둔 것이다.
- * Supplier 엔티티가 들어오면 이름 조회를 위해 실제 연관관계나 조인으로 교체해야 한다.
+ * 부품과 협력업체의 공급 관계는 독립 엔티티인 {@link PartSupplier}로 관리한다.
+ * 외부 API는 기존 계약대로 supplierIds를 주고받으며, 엔티티 내부에서 관계 객체로 변환한다.
  */
 @Entity
 @Table(name = "part")
@@ -38,7 +37,10 @@ public class Part {
     @Column(nullable = false, unique = true)
     private String partCode;
 
-    @Column(nullable = false, unique = true)
+    /**
+     * ERD 의 컬럼 이름은 {@code name} 이므로 명시적으로 매핑한다.
+     */
+    @Column(name = "name", nullable = false, unique = true)
     private String partName;
 
     @Column(nullable = false, length = 8)
@@ -51,10 +53,8 @@ public class Part {
     @Column(nullable = false, precision = 10, scale = 4)
     private BigDecimal benchmarkFactor;
 
-    @ElementCollection
-    @CollectionTable(name = "part_supplier", joinColumns = @JoinColumn(name = "part_id"))
-    @Column(name = "supplier_id")
-    private Set<Long> supplierIds = new HashSet<>();
+    @OneToMany(mappedBy = "part", cascade = CascadeType.ALL)
+    private Set<PartSupplier> suppliers = new HashSet<>();
 
     @Column(nullable = false)
     private OffsetDateTime createdAt;
@@ -68,7 +68,7 @@ public class Part {
         this.cnCode = cnCode;
         this.unit = unit;
         this.benchmarkFactor = benchmarkFactor;
-        this.supplierIds = supplierIds == null ? new HashSet<>() : new HashSet<>(supplierIds);
+        replaceSuppliers(supplierIds);
         this.createdAt = OffsetDateTime.now();
     }
 
@@ -87,8 +87,35 @@ public class Part {
             this.benchmarkFactor = benchmarkFactor;
         }
         if (supplierIds != null) {
-            this.supplierIds = new HashSet<>(supplierIds);
+            replaceSuppliers(supplierIds);
         }
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public Set<Long> getSupplierIds() {
+        return suppliers.stream()
+                .filter(PartSupplier::isActive)
+                .map(PartSupplier::getSupplierId)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private void replaceSuppliers(Set<Long> supplierIds) {
+        Set<Long> requested = supplierIds == null ? Set.of() : Set.copyOf(supplierIds);
+
+        suppliers.forEach(relation -> {
+            if (requested.contains(relation.getSupplierId())) {
+                relation.activate();
+            } else {
+                relation.deactivate();
+            }
+        });
+
+        Set<Long> existing = suppliers.stream()
+                .map(PartSupplier::getSupplierId)
+                .collect(Collectors.toSet());
+        requested.stream()
+                .filter(supplierId -> !existing.contains(supplierId))
+                .map(supplierId -> new PartSupplier(this, supplierId))
+                .forEach(suppliers::add);
     }
 }

@@ -24,13 +24,72 @@
 ## 실행
 
 ```bash
-cp .env.example .env          # 값을 채운다. .env 는 커밋되지 않는다
+cp .env.example .env          # 메일·AI 기능을 쓸 때 필요한 값만 채운다
 
-cd backend  && ./gradlew bootRun            # http://localhost:8080
+# 새 터미널에서 실행한다.
+cd backend && ./gradlew bootRun              # http://localhost:8080
+
+# 다른 터미널에서 실행한다.
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
 개발과 운영 환경 모두 H2를 사용한다 — [ADR-0004](docs/decisions/0004-database-profiles.md).
+
+### 막히면 여기부터 본다
+
+| 증상 | 원인 | |
+| --- | --- | --- |
+| H2 콘솔에 연결되지 않는다 | JDBC URL이 실행 프로필과 다르다 | 개발 프로필에서는 `jdbc:h2:mem:cbam`을 입력한다 |
+| 운영 데이터를 재시작 후 찾을 수 없다 | `dev` 인메모리 프로필로 실행했다 | `SPRING_PROFILES_ACTIVE=prod`로 파일 DB를 사용한다 |
+| 화면은 뜨는데 데이터가 목이다 | 그 엔드포인트가 `VITE_REAL_API` 에 없다 | 아래 「FE 와 BE 를 붙인다」 |
+
+## FE 와 BE 를 붙인다
+
+**FE 는 기본적으로 목으로 돈다.** BE 없이도 화면 전체가 뜬다. 실서버로 보낼 엔드포인트만
+`frontend/.env` 의 `VITE_REAL_API` 에 하나씩 넣는다 — 거기 없는 것은 목이다.
+
+```bash
+cd frontend
+cp .env.example .env       # VITE_REAL_API 에 실서버로 보낼 것을 적는다
+npm run dev                # /api 요청은 vite 가 VITE_BACKEND_ORIGIN 으로 넘긴다 (CORS 없음)
+
+npm run api:status         # 지금 무엇이 실서버이고 무엇이 목인지
+npm run api:real           # 실서버 계약 검사 — BE 가 8080 에 떠 있어야 한다
+```
+
+지금 실서버로 붙어 있는 것과, 아직 못 붙이는 것과 그 이유다.
+
+| 엔드포인트 | | |
+| --- | --- | --- |
+| `GET /suppliers` · `GET /suppliers/{id}` · `POST /suppliers` | ✅ 붙었다 | `npm run api:real` 16건 통과 |
+| `GET /tasks/{taskId}` | ✅ 붙었다 | 목과 실서버가 같은 모양이라 변환이 없다 |
+| `GET /dashboard` | ⛔ 못 붙인다 | 화면이 추세·할 일·접수 현황·완제품 합계를 읽는데 **BE 응답에 없다.** 붙이면 관제 화면이 빈다 |
+| `GET /mail-receipts` | ⛔ 못 붙인다 | 목록 응답에 `subject`·`body` 가 없다. 접수함이 제목을 못 그린다 |
+| `GET /parts` · `/products` · `/submissions` … | ⛔ 아직 | 필드 이름이 달라 `shapes.js` 에 변환이 필요하다 |
+
+**⛔ 는 「BE 가 틀렸다」가 아니라 「아직 안 맞춰 봤다」는 뜻이다.** 붙이는 순서는
+`shapes.js` 에 변환을 쓰고 → `api/index.js` 의 그 호출에 세 번째 인자(real)를 채우고 →
+`.env` 의 `VITE_REAL_API` 에 넣는다. 화면 코드는 건드리지 않는다.
+
+## AI 를 실제로 돌려 본다 (22~25번)
+
+`.env` 에 `AI_API_KEY` 를 채우고 BE 를 띄운 뒤, **미확인 접수 건을 협력업체에 연결**하면
+그 즉시 분석이 자동으로 돈다(요구사항 20번).
+
+H2에는 샘플 데이터를 자동 입력하지 않는다. 먼저 API로 협력업체와 미확인 접수 데이터를 준비한 뒤 실제 ID로 요청한다.
+
+```bash
+curl -X PATCH localhost:8080/api/v1/mail-receipts/{mailReceiptId}/supplier \
+     -H 'Content-Type: application/json' -H 'X-Operator-Id: demo' \
+     -d '{"supplierId":{supplierId}}'
+# → {"analyzeTaskId":"tsk-…"}
+
+curl localhost:8080/api/v1/tasks/tsk-…      # PENDING → COMPLETED (10초 안팎)
+# → resourceIds 에 만들어진 제출 데이터 id, unregisteredPartCount 에 미등록 부품 수
+```
+
+**키가 없어도 앱은 뜬다.** 그때 분석은 실패로, 피드백 초안은 46번의 기본 템플릿으로 간다 —
+[ADR-0013](docs/decisions/0013-ai-call-restclient-and-polling.md).
 
 ### H2 프로필
 

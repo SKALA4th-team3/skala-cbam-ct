@@ -1,69 +1,130 @@
-# ─────────────────────────────────────────────
-#  비밀값 — 절대 커밋하지 않는다
-#  메일 계정 비밀번호 · AI API 키 · DB 접속정보는 .env 로,
-#  저장소에는 .env.example 만 둔다
-# ─────────────────────────────────────────────
+# ============================================================
+# Secrets and local configuration
+# ============================================================
 .env
 .env.*
 !.env.example
+!**/.env.example
+
 *.pem
 *.key
 *.p12
+*.pfx
 *.jks
-src/main/resources/application-local.*
-src/main/resources/application-secret.*
 
-# ─── Java / Spring Boot ──────────────────────
+**/src/main/resources/application-local.*
+**/src/main/resources/application-secret.*
+**/src/main/resources/application-*-local.*
+
+# ============================================================
+# Java / Spring Boot / Gradle
+# ============================================================
+.gradle/
+**/.gradle/
 build/
+**/build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 target/
+**/target/
 out/
+**/out/
 bin/
+**/bin/
+
 *.class
 *.jar
 *.war
+*.ear
 !gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 !.mvn/wrapper/maven-wrapper.jar
-.gradle/
+
 .mvn/timing.properties
-*.log
 hs_err_pid*
 replay_pid*
 
-# ─── Node / Vue ──────────────────────────────
+# ============================================================
+# Node.js / Vue / Vite
+# ============================================================
 node_modules/
+**/node_modules/
 dist/
+**/dist/
 dist-ssr/
+**/dist-ssr/
 .vite/
+**/.vite/
 coverage/
+**/coverage/
+
 *.local
+*.tsbuildinfo
+*.timestamp-*-*.mjs
+.eslintcache
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-.eslintcache
+lerna-debug.log*
 
-# ─── IDE ─────────────────────────────────────
+# Test artifacts
+cypress/videos/
+cypress/screenshots/
+__screenshots__/
+
+# ============================================================
+# IDE / editor
+# ============================================================
 .idea/
+**/.idea/
 *.iml
 *.ipr
 *.iws
-.vscode/
+
+.vscode/*
+**/.vscode/*
 !.vscode/extensions.json
+!**/.vscode/extensions.json
+
 .classpath
 .project
 .settings/
 .factorypath
+.apt_generated/
+.springBeans
+.sts4-cache/
 
-# ─── OS ──────────────────────────────────────
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ============================================================
+# Logs, temporary files, and OS metadata
+# ============================================================
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.orig
+*~
+
 .DS_Store
+._*
 Thumbs.db
+desktop.ini
 
-# ─── 업로드/첨부 (20번 첨부파일 추출 저장) ────
-# 협력업체가 보낸 첨부는 실제 배출 데이터다. 저장소에 넣지 않는다
+# ============================================================
+# Runtime data
+# ============================================================
 uploads/
+**/uploads/
 attachments/
+**/attachments/
 
 # ─── H2 파일 DB ──────────────────────────────
 # prod 프로필의 영속 데이터는 로컬 파일이며 저장소에 넣지 않는다
@@ -71,6 +132,12 @@ data/
 *.mv.db
 *.trace.db
 
-# ─── 로컬에 받아 둔 API 명세서 ────
-# 팀 공용 원본은 별도로 공유한다. 사본을 저장소에 넣으면 원본과 갈린다
+# Local API specifications and reference files
+/ref/
+/Products_todo.md
 CBAM_API*.xlsx
+CBAM_API*.pdf
+
+# ─── 개인 세션 노트 ──────────────────────────
+# AI와 나눈 대화를 정리한 개인 참고용 노트. 팀 공식 문서가 아니라 커밋하지 않는다
+docs/notes/

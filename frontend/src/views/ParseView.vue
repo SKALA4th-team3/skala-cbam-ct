@@ -27,7 +27,12 @@ onMounted(async () => {
       if (t.status === 'PROCESSING') step.value = Math.min(4, step.value + 1)
       if (t.status === 'COMPLETED') { state.value = 'done'; step.value = 5; stop()
         ui.say(`변환 완료 · 항목 ${rows.value.length}개 중 ${flagged.value}개는 사람 확인 대기`) }
-      if (t.status === 'FAILED') { state.value = 'err'; error.value = t.error; stop(); ui.say('분석 실패 · ' + t.error.message) }
+      if (t.status === 'FAILED') {
+        /* №19 는 작업이 실패해도 200 이다 — 실패는 status·errorCode 로 말한다 */
+        state.value = 'err'
+        error.value = { code: t.errorCode, message: t.errorMessage ?? '분석에 실패했습니다' }
+        stop(); ui.say('분석 실패 · ' + error.value.message)
+      }
     } catch (e) {
       /* 폴링이 던지면(작업이 사라진 404 등) 조용히 실패하면서 interval 은 계속 돈다.
          읽지 못한 것을 「읽는 중」으로 두지 않는다 — 멈추고 그렇다고 말한다 (22번 「분석 실패」). */

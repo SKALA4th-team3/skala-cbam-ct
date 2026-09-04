@@ -12,6 +12,7 @@ import com.skala.cbam.mail.error.MailErrorCode;
 import com.skala.cbam.mail.error.MailException;
 import com.skala.cbam.mail.repository.AttachmentRepository;
 import com.skala.cbam.mail.repository.MailReceiptRepository;
+import com.skala.cbam.mail.repository.MailReceiptSpecifications;
 import com.skala.cbam.mail.service.port.MailRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.domain.SupplierStatus;
@@ -38,12 +39,13 @@ public class MailService {
     private final AttachmentRepository attachmentRepository;
     private final SupplierRepository supplierRepository;
     private final MailRelatedDataProvider mailRelatedDataProvider;
+    private final MailAnalysisService mailAnalysisService;
 
     // ── 15번: 접수 이력 조회 ────────────────────────────────────────
 
     public PageResponse<MailReceiptListItem> listReceipts(MailReceiptSearchCondition condition, Pageable pageable) {
-        Page<MailReceipt> page = mailReceiptRepository.search(
-                condition.supplierId(), condition.status(), condition.receivedFrom(), condition.receivedTo(), pageable);
+        Page<MailReceipt> page = mailReceiptRepository.findAll(MailReceiptSpecifications.matches(
+                condition.supplierId(), condition.status(), condition.receivedFrom(), condition.receivedTo()), pageable);
 
         List<MailReceiptListItem> content = page.getContent().stream().map(this::toListItem).toList();
         return PageResponse.of(page, content);
@@ -144,10 +146,13 @@ public class MailService {
 
         receipt.match(supplier, linkedBy);
 
-        // "연결 즉시 AI 분석을 자동 호출한다"(요구사항 20번)는 AI 분석 도메인(22~27번, CBAM-84)이
-        // 아직 없어서 못 한다. analyzeTaskId 는 항상 null — 가짜 값을 만들지 않는다.
+        // 요구사항 20번 "연결 즉시 AI 분석을 자동 호출한다" (CBAM-100).
+        // 분석은 커밋 뒤 별도 스레드에서 돈다 — 여기서는 taskId 만 받아 즉시 돌려주고,
+        // 화면은 그것으로 №19 GET /tasks/{taskId} 를 폴링한다.
+        String analyzeTaskId = mailAnalysisService.scheduleAnalysis(receipt, linkedBy);
+
         return new MailReceiptMatchResponse(
                 receipt.getId(), supplier.getId(), receipt.getStatus(),
-                receipt.getLinkedBy(), receipt.getLinkedAt(), null);
+                receipt.getLinkedBy(), receipt.getLinkedAt(), analyzeTaskId);
     }
 }

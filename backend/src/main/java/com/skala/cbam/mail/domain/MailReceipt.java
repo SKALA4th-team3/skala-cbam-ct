@@ -131,6 +131,28 @@ public class MailReceipt {
         this.linkedAt = now();
     }
 
+    /**
+     * 요구사항 20번 — 연결 즉시 AI 분석을 자동 호출한다. 그 작업의 id 를 붙든다.
+     *
+     * <p>재분석하면 <b>최신 것으로 덮는다</b> — 화면은 이 값 하나로 №19 를 폴링한다.
+     * 이전 작업의 결과는 task_resource 에 남아 있어 잃어버리지 않는다.
+     */
+    public void startAnalysis(String analysisTaskId) {
+        this.latestAnalysisTaskId = analysisTaskId;
+    }
+
+    /** 22번 분석 성공. 실패했던 건을 다시 분석해 성공하면 failureReason 도 지운다. */
+    public void completeAnalysis() {
+        this.status = MailReceiptStatus.ANALYZED;
+        this.failureReason = null;
+    }
+
+    /** 22번 분석 실패. failureReason 은 №16 의 네 값 중 하나다 — 새 코드를 만들지 않는다. */
+    public void failAnalysis(String failureReason) {
+        this.status = MailReceiptStatus.ANALYSIS_FAILED;
+        this.failureReason = failureReason;
+    }
+
     @PrePersist
     void onPrePersist() {
         this.createdAt = now();

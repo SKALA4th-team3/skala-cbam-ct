@@ -1,16 +1,17 @@
 # FE 검사. 손으로 돌려야 하는 검사는 사흘 뒤에 아무도 돌리지 않는다.
 #   lint       — oxlint + eslint
 #   api:verify — 목 API 의 「막는 쪽」이 실제로 막는지 (요구사항 1·7·14·19·30·31·32번)
+#   ai:verify  — AI 응답 규격이 strict 규칙·명세·화면 변환을 지키는지 (ADR-0010)
 #   build      — 화면이 실제로 묶이는지
 name: frontend
 
 on:
   pull_request:
     branches: [dev, main]
-    paths: ['frontend/**', '.github/workflows/frontend.yml']
+    paths: ['frontend/**', 'docs/product/prompts/**', '.github/workflows/frontend.yml']
   push:
     branches: [dev]
-    paths: ['frontend/**', '.github/workflows/frontend.yml']
+    paths: ['frontend/**', 'docs/product/prompts/**', '.github/workflows/frontend.yml']
 
 jobs:
   check:
@@ -30,4 +31,5 @@ jobs:
       - run: npx oxlint .
       - run: npx eslint .
       - run: npm run api:verify
+      - run: npm run ai:verify
       - run: npm run build

@@ -50,12 +50,15 @@ docs/decisions/0001-ai-response-schema.md
 | [ADR-0007](0007-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |
 | [ADR-0008](0008-feedback-history-list-endpoint.md) | 발송 이력 전체 조회 경로를 명세에 더한다 (51번·53번) |
 | [ADR-0009](0009-no-paging-on-list-screens.md) | 목록 화면은 페이징하지 않는다 — 전량을 받아 브라우저에서 거른다 |
+| [ADR-0010](0010-ai-response-json-schema.md) | AI 응답 JSON 규격은 화면이 이미 읽는 모양에서 뽑는다 (22~25번 · 42~46번) |
+| [ADR-0012](0012-task-resource-generalization.md) | 비동기 작업이 만든 것을 `task.resource_ids` 로 가리킨다 (19번) |
+| [ADR-0013](0013-ai-call-restclient-and-polling.md) | AI 는 `RestClient` 로 부르고 화면 계약은 202 + 폴링으로 둔다 (22~25번 · 42~46번) |
 
 
 ## 앞으로 예상되는 것
 
-- AI 응답 JSON 규격 (**비운 값과 사유를 어떻게 표현할 것인가** — 24번의 핵심)
 - 메일 수신 방식과 폴링 주기 (18번)
+- 첨부 파싱 라이브러리 (Apache POI · PDFBox) — 지금은 텍스트 계열만 읽는다
 - 규칙 R1~R7이 걸렸을 때 `부적격`인지 `미제출`인지 (**현재 매핑 없음** — 가장 급하다)
 - 협력업체 단위 심각도의 정의 — 36번이 붙은 뒤 ([ADR-0007](0007-supplier-list-default-sort.md) 이 열어 둔 것)
 - `/api/v1/internal/**` 의 `X-Internal-Token` 을 누가 관리하는지 ([ADR-0006](0006-no-auth-internal-network.md) 이 비워 둔 것)
