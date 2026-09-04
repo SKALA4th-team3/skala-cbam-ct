@@ -40,6 +40,49 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+/*
+ * AI 응답 스키마는 docs/product/prompts/schema/ 한 벌만 둔다 (ADR-0012 ⑤).
+ * 여기서 classpath 의 ai/ 로 복사한다 — 두 벌을 두면 갈라지고, 갈라지면
+ * `npm run ai:verify` 가 검사하는 것과 서버가 실제로 보내는 것이 달라진다.
+ */
+def aiPromptDir = file("${projectDir}/../docs/product/prompts")
+def aiSchemaDir = new File(aiPromptDir, 'schema')
+def aiSystemDir = new File(aiPromptDir, 'system')
+
+tasks.register('checkAiSchemas') {
+	description = 'AI 스키마·시스템 프롬프트 원본이 제자리에 있는지 확인한다'
+	doLast {
+		[(aiSchemaDir): ['extraction.schema.json', 'draft.schema.json'],
+		 (aiSystemDir): ['extraction.system.txt', 'draft.system.txt']].each { dir, names ->
+			if (!dir.isDirectory()) {
+				throw new GradleException(
+					"AI 원본을 찾을 수 없다: ${dir}\n" +
+					"ADR-0012 ⑤ 참고 — 스키마와 프롬프트는 docs/product/prompts/ 에 한 벌만 둔다.")
+			}
+			names.each { name ->
+				if (!new File(dir, name).isFile()) {
+					throw new GradleException("AI 원본이 없다: ${name} (${dir})")
+				}
+			}
+		}
+	}
+}
+
+tasks.named('processResources') {
+	dependsOn 'checkAiSchemas'
+	from(aiSchemaDir) {
+		into 'ai'
+		include '*.schema.json'
+		// 예시 응답도 함께 옮긴다 — 프런트의 `npm run ai:verify` 와 백엔드 테스트가
+		// **같은 파일 하나**를 검사한다. 두 벌이면 한쪽만 고쳐지고 아무도 모른다
+		include '*.example.json'
+	}
+	from(aiSystemDir) {
+		into 'ai'
+		include '*.system.txt'
+	}
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'

@@ -5,8 +5,8 @@ import com.skala.cbam.common.exception.ErrorCode;
 import com.skala.cbam.dashboard.dto.DashboardAlertsResponse;
 import com.skala.cbam.dashboard.dto.DashboardResponse;
 import com.skala.cbam.dashboard.dto.DashboardStatus;
-import com.skala.cbam.dashboard.entity.SeverityCode;
 import com.skala.cbam.dashboard.service.DashboardService;
+import com.skala.cbam.submission.domain.Severity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -66,7 +66,7 @@ public class DashboardController {
             @Parameter(description = "YYYY-MM, 기본값은 현재월")
             @RequestParam(required = false) String month,
             @Parameter(description = "HIGH|MEDIUM|LOW")
-            @RequestParam(required = false) SeverityCode severity,
+            @RequestParam(required = false) Severity severity,
             @Parameter(description = "R1~R7")
             @RequestParam(required = false) String ruleId,
             @RequestParam(defaultValue = "0")

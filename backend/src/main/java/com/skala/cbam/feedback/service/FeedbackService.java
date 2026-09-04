@@ -1,5 +1,10 @@
 package com.skala.cbam.feedback.service;
 
+import com.skala.cbam.ai.client.AiCallException;
+import com.skala.cbam.ai.dto.DraftInput;
+import com.skala.cbam.ai.dto.DraftResult;
+import com.skala.cbam.ai.prompt.DraftStyle;
+import com.skala.cbam.ai.service.AiService;
 import com.skala.cbam.common.domain.DeliveryStatus;
 import com.skala.cbam.common.domain.FeedbackStatus;
 import com.skala.cbam.common.domain.TaskStatus;
@@ -31,6 +36,7 @@ import com.skala.cbam.feedback.service.port.SubmissionRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.dto.PageResponse;
 import com.skala.cbam.supplier.repository.SupplierRepository;
+import com.skala.cbam.task.domain.TaskResourceType;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -40,6 +46,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mail.MailException;
@@ -51,9 +59,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 피드백 API 서비스 (42~53번 중 47·49번 제외, CBAM-88).
  *
- * <p>AI 제공자가 미정이라 초안 생성·재생성은 항상 요구사항 46번의 기본 템플릿 경로로만 동작한다.
- * 202 봉투(taskId)는 계약대로 만들되, GET /tasks/{taskId}(19번, 폴링)가 이 스코프에 없어 실제
- * 폴링은 안 된다 — 그래서 생성·재생성은 항상 status=COMPLETED 로 응답한다(동기로 이미 끝났으므로).
+ * <p><b>초안은 AI 가 쓴다</b>(CBAM-99, 42~45번). {@link AiService} 가 실패하거나 근거 밖 항목을
+ * 요구하면 요구사항 46번대로 <b>기본 템플릿</b>으로 되돌리고 {@code fallbackApplied} 를 남긴다 —
+ * 화면이 「그대로 보내지 말고 고쳐서 확정하라」고 말할 수 있게 하기 위해서다.
+ * AI 키가 없어도(dev·테스트) 그 경로로 그대로 동작한다.
+ *
+ * <p>생성·재생성은 지금도 동기라 status=COMPLETED 로 응답한다. 만들어진 초안 id 는
+ * {@code Task.recordResult()} 로 남겨 №19 작업 조회의 {@code resourceIds} 가 돌려준다(ADR-0012) —
+ * 전에는 화면이 발송 이력을 훑어 방금 만든 초안을 찾아야 했다.
  *
  * <p>발송(send)만 다르다 — 실제 {@link JavaMailSender} 로 진짜 발송을 시도한다. .env 에 MAIL_SMTP_*
  * 가 없으면 진짜로 502 MAIL_GATEWAY_ERROR 가 난다. 이건 명세가 원래 요구하는 에러 코드라 가짜로
@@ -62,6 +75,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class FeedbackService {
+
+    private static final Logger log = LoggerFactory.getLogger(FeedbackService.class);
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final String FALLBACK_TEMPLATE_ID = "basic-ko-v1";
@@ -72,6 +87,7 @@ public class FeedbackService {
     private final TaskRepository taskRepository;
     private final SupplierRepository supplierRepository;
     private final SubmissionRelatedDataProvider submissionRelatedDataProvider;
+    private final AiService aiService;
     private final JavaMailSender mailSender;
 
     // ── 42·43번: 초안 생성 (개별 + 일괄) ──────────────────────────────
@@ -93,27 +109,30 @@ public class FeedbackService {
                 if (info.qualified()) {
                     throw new FeedbackException(FeedbackErrorCode.NOT_DRAFTABLE);
                 }
-                contexts.add(new TargetContext(
-                        info.supplierId(), info.partSupplierId(), info.submissionId(), info.rejectionReason()));
+                contexts.add(new TargetContext(info.supplierId(), info.partSupplierId(),
+                        info.submissionId(), info.rejectionReason(), info));
             }
         }
         if (hasTargets) {
-            // 미제출 대상 — 제출 데이터 행이 없어 반려 사유도 없다
+            // 미제출 대상 — 제출 데이터 행이 없어 반려 사유도 근거도 없다
             for (var t : request.targets()) {
-                contexts.add(new TargetContext(t.supplierId(), null, null, null));
+                contexts.add(new TargetContext(t.supplierId(), null, null, null, null));
             }
         }
         if (!hasSubmissionIds && !hasTargets) {
             // 43번 일괄 — 이번 달 부적격·미제출 전체. submission 도메인이 없어 지금은 항상 빈 목록.
             for (var info : submissionRelatedDataProvider.findDraftableSubmissions(month)) {
-                contexts.add(new TargetContext(
-                        info.supplierId(), info.partSupplierId(), info.submissionId(), info.rejectionReason()));
+                contexts.add(new TargetContext(info.supplierId(), info.partSupplierId(),
+                        info.submissionId(), info.rejectionReason(), info));
             }
         }
 
         if (contexts.isEmpty()) {
             throw new FeedbackException(FeedbackErrorCode.NO_TARGET);
         }
+
+        List<Long> createdFeedbackIds = new ArrayList<>();
+        boolean anyFallback = false;
 
         for (TargetContext ctx : contexts) {
             Supplier supplier = supplierRepository.findById(ctx.supplierId())
@@ -129,33 +148,41 @@ public class FeedbackService {
                     .createdBy(operatorId)
                     .build());
 
-            GeneratedText text = generateTemplateText(supplier.getName(), style, null, ctx.rejectionReason());
+            GeneratedDraft draft = generateDraft(supplier.getName(), style, null, ctx, month);
+            anyFallback |= draft.fallbackApplied();
+
             feedbackDraftRepository.save(FeedbackDraft.builder()
                     .feedback(feedback)
                     .versionNumber((short) 1)
-                    .sourceType(DraftSourceType.FALLBACK_TEMPLATE)
+                    .sourceType(draft.sourceType())
                     .style(style)
-                    .subject(text.subject())
-                    .body(text.body())
-                    .fallbackApplied(true)
-                    .fallbackTemplateId(FALLBACK_TEMPLATE_ID)
+                    .subject(draft.subject())
+                    .body(draft.body())
+                    .fallbackApplied(draft.fallbackApplied())
+                    .fallbackTemplateId(draft.fallbackApplied() ? FALLBACK_TEMPLATE_ID : null)
                     .build());
+
+            createdFeedbackIds.add(feedback.getId());
         }
 
         Task task = Task.builder()
                 .type(TaskType.GENERATE_FEEDBACK_DRAFT)
                 .status(TaskStatus.PROCESSING)
                 .progressTotal(contexts.size())
-                .fallbackApplied(true)
+                .fallbackApplied(anyFallback)
                 .requestedBy(operatorId)
                 .build();
+        // 43번 일괄은 초안 N 개를 만들고 Task 는 하나다 — 단수 FK 로는 못 가리킨다 (ADR-0012)
+        task.recordResult(TaskResourceType.FEEDBACK, createdFeedbackIds);
         task.completeSuccessfully();
         taskRepository.save(task);
 
         return new FeedbackDraftCreateResponse(task.getId(), TaskStatus.COMPLETED, contexts.size());
     }
 
-    private record TargetContext(Long supplierId, Long partSupplierId, Long submissionId, String rejectionReason) {
+    /** 초안 하나를 만드는 데 필요한 것 전부. {@code info} 가 null 이면 미제출 대상이라 근거가 없다. */
+    private record TargetContext(Long supplierId, Long partSupplierId, Long submissionId,
+                                 String rejectionReason, SubmissionRelatedDataProvider.SubmissionInfo info) {
     }
 
     // ── 44·46번: 초안 조회 ─────────────────────────────────────────
@@ -201,19 +228,23 @@ public class FeedbackService {
         FeedbackStyle style = parseStyle(request.style());
         short nextVersion = (short) (feedbackDraftRepository.countByFeedbackId(draftId) + 1);
 
-        GeneratedText text = generateTemplateText(
-                feedback.getSupplier().getName(), style, request.instruction(), null);
+        // 재생성도 원래 근거로 다시 쓴다 — 추가 지시는 말투와 강조점만 바꾼다 (45번)
+        TargetContext ctx = contextOf(feedback);
+        YearMonth month = feedback.getReportingMonth() == null
+                ? null : YearMonth.from(feedback.getReportingMonth());
+        GeneratedDraft generated = generateDraft(
+                feedback.getSupplier().getName(), style, request.instruction(), ctx, month);
 
         FeedbackDraft draft = feedbackDraftRepository.save(FeedbackDraft.builder()
                 .feedback(feedback)
                 .versionNumber(nextVersion)
-                .sourceType(DraftSourceType.FALLBACK_TEMPLATE)
+                .sourceType(generated.sourceType())
                 .style(style)
                 .instruction(request.instruction())
-                .subject(text.subject())
-                .body(text.body())
-                .fallbackApplied(true)
-                .fallbackTemplateId(FALLBACK_TEMPLATE_ID)
+                .subject(generated.subject())
+                .body(generated.body())
+                .fallbackApplied(generated.fallbackApplied())
+                .fallbackTemplateId(generated.fallbackApplied() ? FALLBACK_TEMPLATE_ID : null)
                 .build());
 
         Task task = Task.builder()
@@ -221,9 +252,10 @@ public class FeedbackService {
                 .type(TaskType.REGENERATE_FEEDBACK_DRAFT)
                 .status(TaskStatus.PROCESSING)
                 .progressTotal(1)
-                .fallbackApplied(true)
+                .fallbackApplied(generated.fallbackApplied())
                 .requestedBy(operatorId)
                 .build();
+        task.recordResult(TaskResourceType.FEEDBACK_DRAFT, List.of(draft.getId()));
         task.completeSuccessfully();
         taskRepository.save(task);
 
@@ -378,6 +410,97 @@ public class FeedbackService {
     // ── 공통 ──────────────────────────────────────────────────────
 
     private record GeneratedText(String subject, String body) {
+    }
+
+    /** 만들어진 초안 하나. {@code fallbackApplied} 가 true 면 AI 가 아니라 기본 템플릿이다 (46번). */
+    private record GeneratedDraft(String subject, String body,
+                                  DraftSourceType sourceType, boolean fallbackApplied) {
+
+        static GeneratedDraft fromAi(String supplierName, DraftResult result) {
+            // 프롬프트가 협력업체명과 「CBAM」 을 빼고 쓰게 돼 있다 — 서버가 붙인다
+            return new GeneratedDraft(
+                    "[CBAM] " + supplierName + " " + result.subject().strip(),
+                    result.bodyText(), DraftSourceType.AI, false);
+        }
+
+        static GeneratedDraft fromTemplate(GeneratedText text) {
+            return new GeneratedDraft(text.subject(), text.body(), DraftSourceType.FALLBACK_TEMPLATE, true);
+        }
+    }
+
+    /**
+     * 42~45번 초안 하나를 만든다. <b>AI 로 쓰고, 안 되면 기본 템플릿으로 되돌린다</b>(46번).
+     *
+     * <p>기본 템플릿으로 가는 경우는 넷이다. 셋은 명세가 말한 실패이고, 하나는 실패가 아니다.
+     * <ul>
+     *   <li>AI 키가 없다 — dev·테스트가 이 경로다</li>
+     *   <li>호출이 실패했거나 시간이 초과됐다 ({@link AiCallException})</li>
+     *   <li>돌려준 초안이 <b>근거 밖 항목을 요구했다</b> — 스키마로 막히지 않아 서버가 대조한다</li>
+     *   <li><b>근거가 아예 없다</b> — 미제출 대상이거나 CBAM-90 이 아직 안 붙어 반려 사유가 비었다.
+     *       없는 근거로 문장을 지어내게 하지 않는다</li>
+     * </ul>
+     *
+     * <p>실패해도 예외를 올리지 않는다. 초안이 없는 것보다 고쳐 쓸 템플릿이라도 있는 편이 낫고,
+     * 화면은 {@code fallbackApplied} 를 보고 「그대로 보내지 말라」고 말한다.
+     */
+    private GeneratedDraft generateDraft(String supplierName, FeedbackStyle style,
+                                         String instruction, TargetContext ctx, YearMonth month) {
+        GeneratedText template = generateTemplateText(supplierName, style, instruction, ctx.rejectionReason());
+
+        if (!aiService.isAvailable()) {
+            return GeneratedDraft.fromTemplate(template);
+        }
+
+        DraftInput input = toDraftInput(supplierName, style, instruction, ctx, month);
+        if (input.hasNoBasis()) {
+            log.info("초안 근거가 없어 기본 템플릿으로 간다 (submissionId={})", ctx.submissionId());
+            return GeneratedDraft.fromTemplate(template);
+        }
+
+        try {
+            DraftResult result = aiService.draft(input);
+            if (result != null) {
+                return GeneratedDraft.fromAi(supplierName, result);
+            }
+            log.warn("AI 초안이 근거를 벗어나 기본 템플릿으로 간다 (submissionId={})", ctx.submissionId());
+        } catch (AiCallException e) {
+            // 46번 — 실패를 표시하고 기본 템플릿을 대신 제공한다
+            log.warn("AI 초안 생성 실패({}) — 기본 템플릿으로 간다: {}", e.errorCode(), e.getMessage());
+        }
+        return GeneratedDraft.fromTemplate(template);
+    }
+
+    private DraftInput toDraftInput(String supplierName, FeedbackStyle style,
+                                    String instruction, TargetContext ctx, YearMonth month) {
+        var info = ctx.info();
+        List<DraftInput.MissingItem> missing = info == null ? List.of()
+                : info.missingFields().stream()
+                        .map(f -> new DraftInput.MissingItem(f.key(), f.label(), f.rawValue(), f.note()))
+                        .toList();
+
+        return new DraftInput(
+                supplierName,
+                month == null ? null : month.toString(),
+                null, // 회신 기한 — 명세에 초안 생성 요청의 기한 필드가 없다. 지어내지 않는다
+                info == null ? null : info.judgement(),
+                info == null ? null : info.ruleId(),
+                info == null ? null : info.ruleName(),
+                ctx.rejectionReason(),
+                missing,
+                info == null ? List.of() : info.unregisteredPartNames(),
+                ctx.rejectionReason(),
+                DraftStyle.valueOf(style.name()),
+                instruction);
+    }
+
+    /** 재생성이 원래 근거를 다시 읽는다. 제출 도메인이 없으면 근거도 없다 — 그때는 템플릿이다. */
+    private TargetContext contextOf(Feedback feedback) {
+        Long submissionId = feedback.getSubmissionId();
+        var info = submissionId == null ? null
+                : submissionRelatedDataProvider.findSubmissionInfo(submissionId).orElse(null);
+        return new TargetContext(
+                feedback.getSupplier().getId(), feedback.getPartSupplierId(), submissionId,
+                info == null ? null : info.rejectionReason(), info);
     }
 
     private GeneratedText generateTemplateText(
