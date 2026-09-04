@@ -131,3 +131,7 @@ attachments/
 /Products_todo.md
 CBAM_API*.xlsx
 CBAM_API*.pdf
+
+# ─── 개인 세션 노트 ──────────────────────────
+# AI와 나눈 대화를 정리한 개인 참고용 노트. 팀 공식 문서가 아니라 커밋하지 않는다
+docs/notes/
