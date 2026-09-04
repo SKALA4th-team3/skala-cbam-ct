@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 /** 제품 API의 예외를 공통 형식의 오류 응답으로 변환한다. */
@@ -38,6 +39,14 @@ abstract class ProductApiExceptionHandling {
         return toResponse(ProductErrorCode.INVALID_REQUEST,
                 ProductErrorCode.INVALID_REQUEST.getDefaultMessage(),
                 Map.of("fieldErrors", fieldErrors), request);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ProductErrorResponse> handleParameterException(
+            MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+        return toResponse(ProductErrorCode.INVALID_PARAMETER,
+                ProductErrorCode.INVALID_PARAMETER.getDefaultMessage(),
+                Map.of("field", exception.getName()), request);
     }
 
     private ResponseEntity<ProductErrorResponse> toResponse(

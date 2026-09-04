@@ -45,4 +45,8 @@ public class ProductPart extends BaseTimeEntity {
         this.partSupplier = partSupplier;
         this.inputQtyPerTon = inputQtyPerTon;
     }
+
+    void updateInputQtyPerTon(BigDecimal inputQtyPerTon) {
+        this.inputQtyPerTon = inputQtyPerTon;
+    }
 }
