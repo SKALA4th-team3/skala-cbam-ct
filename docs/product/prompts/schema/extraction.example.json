@@ -1,0 +1,68 @@
+{
+  "status": "EXTRACTED",
+  "failure": null,
+  "sourceLanguage": "ko",
+  "reportingMonth": "2026-09",
+  "productionCountry": "KR",
+  "items": [
+    {
+      "field": "emission_indirect",
+      "label": "전력사용량",
+      "raw": "전력사용량: 982,000 kWh",
+      "value": "982",
+      "unit": "MWh",
+      "note": "환산 kWh→MWh",
+      "confidence": 0.98,
+      "where": "3Q_배출량.xlsx 시트1 B4"
+    },
+    {
+      "field": "other",
+      "label": "무연탄",
+      "raw": "무연탄 1,250 t",
+      "value": "1,250",
+      "unit": "t",
+      "note": "원문 단위가 이미 표준 단위라 그대로 옮겼다",
+      "confidence": 0.97,
+      "where": "3Q_배출량.xlsx 시트1 B6"
+    },
+    {
+      "field": "part_name",
+      "label": "제품",
+      "raw": "제품: 열연강판 (두께 2.4)",
+      "value": "열연강판",
+      "unit": null,
+      "note": "괄호 안 두께는 품명이 아니라 규격이라 제외했다",
+      "confidence": 0.86,
+      "where": "본문 2행"
+    },
+    {
+      "field": "other",
+      "label": "증기 사용량",
+      "raw": "증기 사용량 4,200",
+      "value": "4,200",
+      "unit": null,
+      "note": "단위가 적혀 있지 않아 t 인지 GJ 인지 알 수 없다 — 변환하지 않고 비웠다",
+      "confidence": 0.55,
+      "where": "본문 3행"
+    },
+    {
+      "field": "other",
+      "label": "천연가스 사용량",
+      "raw": "연료 사용량: (기재 없음)",
+      "value": null,
+      "unit": null,
+      "note": "원문에 값이 없다",
+      "confidence": 1,
+      "where": "3Q_배출량.xlsx 시트1 B9"
+    }
+  ],
+  "parts": [
+    {
+      "rawName": "열연강판",
+      "matchedPartName": "열연코일",
+      "matchedPartId": 7,
+      "confidence": 0.91,
+      "note": "등록 부품 「열연코일」과 CN 7208 대역이 같아 매칭했다"
+    }
+  ]
+}

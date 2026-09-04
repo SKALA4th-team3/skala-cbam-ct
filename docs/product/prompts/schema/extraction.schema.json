@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cbam/extraction/v1",
+  "title": "제출자료 추출 결과 (요구사항 22~25번 · UC-05)",
+  "description": "협력사가 보낸 메일 본문과 첨부에서 배출 항목을 뽑아 표준 단위로 옮긴 결과. 모르는 값은 채우지 않고 value 를 null 로 두고 note 에 사유를 남긴다 (24번).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "failure", "sourceLanguage", "reportingMonth", "productionCountry", "items", "parts"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["EXTRACTED", "ANALYSIS_FAILED"],
+      "description": "ANALYSIS_FAILED 는 22번 「암호가 걸렸거나 파싱 실패」다. 그때 items 와 parts 는 빈 배열이고 failure 를 채운다. 모델이 정상 응답하면서 '읽지 못했다'고 말하는 경우이며, API 오류와는 다르다."
+    },
+    "failure": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "description": "status 가 ANALYSIS_FAILED 일 때만 채운다. 아니면 null.",
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": ["ENCRYPTED", "PARSE_FAILED", "SCAN_QUALITY", "UNSUPPORTED_FORMAT", "NO_EMISSION_DATA"],
+          "description": "SCAN_QUALITY 는 R3 「스캔 품질 미달」이다."
+        },
+        "message": { "type": "string", "description": "담당자가 읽을 한국어 한 문장. 추측을 적지 않는다." }
+      }
+    },
+    "sourceLanguage": {
+      "type": "string",
+      "enum": ["ko", "en", "vi", "id", "zh", "unknown"],
+      "description": "원문 언어. 판정하지 못하면 unknown — 지어내지 않는다."
+    },
+    "reportingMonth": {
+      "type": ["string", "null"],
+      "description": "서류 제출일자의 월 (23번). YYYY-MM. 문서에서 찾지 못하면 null — 오늘 날짜로 채우지 않는다. 33번이 이 값과 현재 월을 비교한다."
+    },
+    "productionCountry": {
+      "type": ["string", "null"],
+      "description": "생산국 (23번). ISO 3166-1 alpha-2 대문자 두 글자. 문서에 없으면 null."
+    },
+    "items": {
+      "type": "array",
+      "description": "뽑아낸 배출 항목. 23번이 요구하는 여섯 가지를 우선 채우고, 문서에 있는 연료·에너지 세부는 field=other 로 함께 싣는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "label", "raw", "value", "unit", "note", "confidence", "where"],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": ["part_name", "production", "emission_direct", "emission_indirect", "production_country", "reporting_month", "other"],
+            "description": "23번이 이름 붙인 여섯 가지. 그 밖의 연료·에너지 세부는 other 이고 label 이 원문 이름을 갖는다."
+          },
+          "label": { "type": "string", "description": "원문이 부른 이름 그대로. 예: 「무연탄」 「증기 사용량」" },
+          "raw": { "type": "string", "description": "변환 전 원본 값을 문자열 그대로 보존한다 (24번). 원문에 없는 글자를 넣지 않는다." },
+          "value": {
+            "type": ["string", "null"],
+            "description": "표준 단위로 옮긴 값. 숫자를 문자열로 담는다(자릿수 표기 보존). 변환할 수 없으면 반드시 null — 0 이나 추정치를 넣지 않는다 (24번)."
+          },
+          "unit": {
+            "type": ["string", "null"],
+            "description": "표준 단위. tCO2e · t · MWh · GJ 중 하나. 원문에 단위가 없거나 어느 쪽인지 모르면 null 이고 그것이 R5 「단위 불명확」이다."
+          },
+          "note": {
+            "type": "string",
+            "description": "반드시 채운다. 변환했으면 무엇을 무엇으로 바꿨는지(「환산 kWh→MWh」), 비웠으면 왜 비웠는지(「단위가 적혀 있지 않다」). 빈 문자열을 넣지 않는다."
+          },
+          "confidence": {
+            "type": "number",
+            "description": "0 이상 1 이하. 원문에 그대로 적혀 있으면 1 에 가깝고, 문맥으로 추론했으면 낮춘다. 0.9 미만이면 화면이 「사람 확인 대기」로 표시한다."
+          },
+          "where": {
+            "type": "string",
+            "description": "항목별 추출 근거 — 원문 위치 (23번). 예: 「xlsx 시트1 B4」 「본문 3행」 「scan_0902.pdf 2쪽 표2」. 위치를 모르면 이 항목을 만들지 않는다."
+          }
+        }
+      }
+    },
+    "parts": {
+      "type": "array",
+      "description": "부품 매핑 (25번). 등록 부품 목록은 입력으로 준다. 목록에 없으면 matchedPartId 를 null 로 두고 원문 표기를 rawName 에 그대로 남긴다 — 비슷한 이름으로 억지로 맞추지 않는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rawName", "matchedPartName", "matchedPartId", "confidence", "note"],
+        "properties": {
+          "rawName": { "type": "string", "description": "원문 표기 그대로 (27번이 이것을 화면에 보여준다)." },
+          "matchedPartName": { "type": ["string", "null"], "description": "매칭된 등록 부품명. 없으면 null." },
+          "matchedPartId": { "type": ["integer", "null"], "description": "매칭된 등록 부품 id. 없으면 null 이고 그것이 R6 「미등록 부품」이다." },
+          "confidence": { "type": "number", "description": "0 이상 1 이하. 0.9 미만이면 매칭하지 않고 null 로 둔다." },
+          "note": { "type": "string", "description": "매칭 근거 또는 매칭하지 못한 사유." }
+        }
+      }
+    }
+  }
+}

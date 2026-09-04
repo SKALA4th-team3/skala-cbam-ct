@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cbam/feedback-draft/v1",
+  "title": "피드백 안내문 초안 (요구사항 42~45번 · UC-10)",
+  "description": "판정 사유(37번)와 반려 사유(32번)를 근거로 협력사에 보낼 안내문 초안을 만든다. 근거에 없는 항목을 요구하지 않는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject", "body", "requestedItems", "citedBasis", "dueDate"],
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "메일 제목 한 줄. 협력사명과 기간을 넣지 않는다 — 서버가 붙인다. 예: 「3분기 자료 보완 요청」"
+    },
+    "body": {
+      "type": "array",
+      "description": "본문 문단 배열. 화면이 문단마다 <p> 로 그린다. 문단 안의 줄바꿈(\\n)은 목록에만 쓴다. 첫 문단은 인사, 마지막 문단은 서명이다.",
+      "items": { "type": "string" }
+    },
+    "requestedItems": {
+      "type": "array",
+      "description": "협력사에 다시 요청하는 항목. **입력으로 준 근거(missingFields · rows · unmappedParts)에 있는 것만 넣는다.** 없는 값을 채우자고 요구하지 않는다 — 무엇이 왜 비었는지만 적는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "reason"],
+        "properties": {
+          "field": { "type": "string", "description": "입력 근거에 있던 항목 이름 그대로. 새 이름을 만들지 않는다." },
+          "reason": { "type": "string", "description": "왜 다시 필요한지 한 문장. 「누락」「단위 불명확」처럼 근거가 말한 것을 옮긴다." }
+        }
+      }
+    },
+    "citedBasis": {
+      "type": "array",
+      "description": "이 문안이 실제로 쓴 근거의 식별자. 규칙 코드(R2 · R5) 또는 항목 이름. 근거 없이 쓴 문장이 있으면 안 되므로 비어 있으면 담당자가 검토해야 한다는 뜻이다.",
+      "items": { "type": "string" }
+    },
+    "dueDate": {
+      "type": ["string", "null"],
+      "description": "회신 기한 YYYY-MM-DD. 입력으로 준 기한을 그대로 옮긴다. 입력에 없으면 null — 날짜를 지어내지 않는다."
+    }
+  }
+}
