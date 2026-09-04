@@ -27,7 +27,7 @@ class JpaPartRelatedDataProviderTest {
     void 활성_공급관계를_미제출_대상으로_반환한다() {
         Part part = partsRepository.saveAndFlush(new Part(
                 "P-SUB-1", "제출 연동 부품", "72081000", PartUnit.TON,
-                new BigDecimal("1.0000"), Set.of(10L, 20L)));
+                new BigDecimal("1.0000"), null, Set.of(10L, 20L)));
 
         var targets = dataProvider.findActiveTargets(10L, part.getId());
 
@@ -43,8 +43,8 @@ class JpaPartRelatedDataProviderTest {
     void 비활성_공급관계는_미제출_대상에서_제외한다() {
         Part part = partsRepository.saveAndFlush(new Part(
                 "P-SUB-2", "비활성 연동 부품", "72081000", PartUnit.TON,
-                new BigDecimal("1.0000"), Set.of(10L)));
-        part.update(null, null, null, null, Set.of());
+                new BigDecimal("1.0000"), null, Set.of(10L)));
+        part.update(null, null, null, null, null, Set.of());
         partsRepository.saveAndFlush(part);
 
         assertThat(dataProvider.findActiveTargets(10L, part.getId())).isEmpty();
@@ -54,7 +54,7 @@ class JpaPartRelatedDataProviderTest {
     void 공급관계_ID로_부품정보를_반환한다() {
         Part part = partsRepository.saveAndFlush(new Part(
                 "P-SUB-3", "상세 연동 부품", "72081000", PartUnit.TON,
-                new BigDecimal("1.0000"), Set.of(10L)));
+                new BigDecimal("1.0000"), 2026, Set.of(10L)));
         Long relationId = part.getSuppliers().iterator().next().getId();
 
         var info = dataProvider.findPartInfo(relationId);
@@ -62,6 +62,19 @@ class JpaPartRelatedDataProviderTest {
         assertThat(info).isPresent();
         assertThat(info.orElseThrow().partId()).isEqualTo(part.getId());
         assertThat(info.orElseThrow().partName()).isEqualTo("상세 연동 부품");
-        assertThat(info.orElseThrow().benchmarkFactorYear()).isNull();
+        // 31번 확정이 스냅샷으로 찍는 값이다. 여기서 null 이 나오면 확정이 영영 막힌다.
+        assertThat(info.orElseThrow().benchmarkFactorYear()).isEqualTo(2026);
+    }
+
+    @Test
+    void 부품에_배출계수_연도가_없으면_그대로_비워서_반환한다() {
+        Part part = partsRepository.saveAndFlush(new Part(
+                "P-SUB-4", "연도 없는 부품", "72081000", PartUnit.TON,
+                new BigDecimal("1.0000"), null, Set.of(10L)));
+        Long relationId = part.getSuppliers().iterator().next().getId();
+
+        // 없는 값을 지어내지 않는다 — 확정은 이 null 을 보고 스스로 막는다.
+        assertThat(dataProvider.findPartInfo(relationId).orElseThrow().benchmarkFactorYear())
+                .isNull();
     }
 }

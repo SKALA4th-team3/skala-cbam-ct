@@ -272,7 +272,7 @@ class DashboardApiTest {
 
     private static Part part(String code, String name, String cnCode, Long supplierId) {
         return new Part(code, name, cnCode, PartUnit.TON, new java.math.BigDecimal("1.8000"),
-                java.util.Set.of(supplierId));
+                2026, java.util.Set.of(supplierId));
     }
 
     private static Supplier supplier(String name, String businessNumber, String email) {

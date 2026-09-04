@@ -48,6 +48,6 @@ public class JpaPartRelatedDataProvider implements PartRelatedDataProvider {
                 .map(relation -> new PartInfo(
                         relation.getPart().getId(),
                         relation.getPart().getPartName(),
-                        null));
+                        relation.getPart().getBenchmarkFactorYear()));
     }
 }

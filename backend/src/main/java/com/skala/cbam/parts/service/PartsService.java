@@ -69,6 +69,7 @@ public class PartsService {
                 request.cnCode(),
                 unit,
                 request.benchmarkFactor(),
+                request.benchmarkFactorYear(),
                 request.supplierIds()
         );
         return PartResponse.from(partsRepository.save(part));
@@ -90,7 +91,8 @@ public class PartsService {
             throw new PartBusinessException(PartErrorCode.DUPLICATE_PART_NAME);
         }
 
-        part.update(request.partName(), request.cnCode(), unit, request.benchmarkFactor(), request.supplierIds());
+        part.update(request.partName(), request.cnCode(), unit, request.benchmarkFactor(),
+                request.benchmarkFactorYear(), request.supplierIds());
         return PartResponse.from(part);
     }
 

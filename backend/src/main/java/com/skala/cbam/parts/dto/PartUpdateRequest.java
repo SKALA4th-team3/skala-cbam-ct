@@ -10,6 +10,7 @@ public record PartUpdateRequest(
         String cnCode,
         String unit,
         BigDecimal benchmarkFactor,
+        Integer benchmarkFactorYear,
         Set<@NotNull Long> supplierIds
 ) {
 }

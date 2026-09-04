@@ -13,6 +13,7 @@ public record PartResponse(
         String cnCode,
         String unit,
         BigDecimal benchmarkFactor,
+        Integer benchmarkFactorYear,
         Set<Long> supplierIds,
         OffsetDateTime updatedAt
 ) {
@@ -24,6 +25,7 @@ public record PartResponse(
                 part.getCnCode(),
                 part.getUnit().name(),
                 part.getBenchmarkFactor(),
+                part.getBenchmarkFactorYear(),
                 part.getSupplierIds(),
                 part.getUpdatedAt()
         );

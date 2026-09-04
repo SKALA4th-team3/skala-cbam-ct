@@ -61,15 +61,66 @@ npm run api:real           # 실서버 계약 검사 — BE 가 8080 에 떠 있
 
 | 엔드포인트 | | |
 | --- | --- | --- |
-| `GET /suppliers` · `GET /suppliers/{id}` · `POST /suppliers` | ✅ 붙었다 | `npm run api:real` 16건 통과 |
+| `GET /suppliers` · `/suppliers/{id}` · `POST /suppliers` | ✅ 붙었다 | `npm run api:real` 16건 통과 |
+| `GET /parts` · `/parts/{partId}` | ✅ 붙었다 | CN 코드 표기·벤치마크 팩터 단위를 `shapes.js` 가 옮긴다 |
+| `GET /products` · `/products/{productId}` | ✅ 붙었다 | 14번 평균값 대비 실측값 · 15번 내재배출량 |
+| `GET /submissions` | ✅ 붙었다 | 29번 검토 목록 |
+| `POST /submissions/{id}/confirm` · `/reject` | ✅ 붙었다 | **31번 확정 · 32번 반려** |
 | `GET /tasks/{taskId}` | ✅ 붙었다 | 목과 실서버가 같은 모양이라 변환이 없다 |
 | `GET /dashboard` | ⛔ 못 붙인다 | 화면이 추세·할 일·접수 현황·완제품 합계를 읽는데 **BE 응답에 없다.** 붙이면 관제 화면이 빈다 |
 | `GET /mail-receipts` | ⛔ 못 붙인다 | 목록 응답에 `subject`·`body` 가 없다. 접수함이 제목을 못 그린다 |
-| `GET /parts` · `/products` · `/submissions` … | ⛔ 아직 | 필드 이름이 달라 `shapes.js` 에 변환이 필요하다 |
+| `GET /submission-deadlines` · `POST /reminders` | ⛔ 없다 | 16·17번이 아직 구현되지 않았다 |
+| `GET /feedback-*` · `POST /feedback-drafts` | ⛔ 아직 | 화면이 읽는 초안 본문·버전 모양을 아직 안 맞췄다 |
 
 **⛔ 는 「BE 가 틀렸다」가 아니라 「아직 안 맞춰 봤다」는 뜻이다.** 붙이는 순서는
 `shapes.js` 에 변환을 쓰고 → `api/index.js` 의 그 호출에 세 번째 인자(real)를 채우고 →
 `.env` 의 `VITE_REAL_API` 에 넣는다. 화면 코드는 건드리지 않는다.
+
+## 시연하기 — 백엔드와 화면을 붙여 한 줄 돌려 본다
+
+**두 터미널이 필요하다.** 백엔드가 먼저 떠 있어야 한다.
+
+```sh
+# 1) 백엔드 — mock 프로필로 띄우면 시연용 데이터가 함께 들어간다
+cd backend
+SPRING_PROFILES_ACTIVE=dev,mock ./gradlew bootRun
+
+# 2) 화면
+cd frontend
+npm install                # 처음 받았다면 이것부터
+cp .env.example .env
+#    .env 를 열어 「시연용」 주석의 한 줄을 복사해 맨 밑 VITE_REAL_API= 뒤에 붙인다
+npm run dev
+```
+
+붙었는지 눈으로 보기 전에 한 번 센다. **33건이 전부 통과해야 한다.**
+
+```sh
+npm run api:demo           # 백엔드가 8080 에 떠 있어야 한다
+```
+
+### 시연 데이터가 만드는 이야기
+
+목 데이터는 **두 달치**로 되어 있다. 한 달은 끝났고 한 달은 진행 중이다.
+
+| | |
+| --- | --- |
+| **2026-08 — 끝난 달** | 두 부품이 모두 확정이라 완제품 내재배출량이 **1,439.142** 로 나온다. 평균값 1,579.00 대비 -8.9% |
+| **2026-09 — 진행 중** | 적격 1건(확정 대기) · 부적격 1건(평균 대비 +87.5% 이상치, R6 경보) · 발신자를 못 찾은 미확인 접수 1건 |
+
+그래서 이 순서로 눌러 볼 수 있다.
+
+```
+29번 검토 목록 → 31번 확정(적격 건) → 15번 완제품 내재배출량에 반영
+                ↳ 부적격 건은 확정이 막힌다 (400 NOT_QUALIFIED)
+                ↳ 32번 반려 → 42번 피드백 초안
+```
+
+⚠️ **H2 인메모리라 백엔드를 껐다 켜면 시연 데이터가 처음 상태로 돌아온다.**
+확정·반려를 눌러 본 뒤 다시 시연하려면 백엔드만 재시작하면 된다.
+
+⚠️ **아직 못 하는 것** — 18번 메일 수신이 구현되지 않아 **새 제출 건이 시스템에 들어오지는 않는다.**
+목 데이터에 들어 있는 건으로만 시연한다. 24번 관제 화면과 21번 접수함은 위 표의 이유로 목으로 돈다.
 
 ## AI 를 실제로 돌려 본다 (22~25번)
 

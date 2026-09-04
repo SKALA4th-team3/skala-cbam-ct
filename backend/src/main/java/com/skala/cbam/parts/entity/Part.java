@@ -10,6 +10,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,6 +56,17 @@ public class Part {
     @Column(nullable = false, precision = 10, scale = 4)
     private BigDecimal benchmarkFactor;
 
+    /**
+     * ERD {@code part.benchmark_factor_year} — "현재 기준 배출원단위 적용 연도".
+     *
+     * <p>제출 데이터를 확정(31번)할 때 이 값을 스냅샷으로 찍는다. 확정한 날짜의 연도가 아니라
+     * <b>부품에 설정된 연도</b>여야 해서 여기 둔다. 값이 없으면 확정이 막힌다 —
+     * 되돌릴 수 없는 스냅샷에 출처 없는 값을 넣지 않기 위해서다(SubmissionService 확정 로직 참고).
+     */
+    @Column(name = "benchmark_factor_year")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
+    private Integer benchmarkFactorYear;
+
     @OneToMany(mappedBy = "part", cascade = CascadeType.ALL)
     private Set<PartSupplier> suppliers = new HashSet<>();
 
@@ -62,18 +76,20 @@ public class Part {
     private OffsetDateTime updatedAt;
 
     public Part(String partCode, String partName, String cnCode, PartUnit unit,
-                BigDecimal benchmarkFactor, Set<Long> supplierIds) {
+                BigDecimal benchmarkFactor, Integer benchmarkFactorYear, Set<Long> supplierIds) {
         this.partCode = partCode;
         this.partName = partName;
         this.cnCode = cnCode;
         this.unit = unit;
         this.benchmarkFactor = benchmarkFactor;
+        this.benchmarkFactorYear = benchmarkFactorYear;
         replaceSuppliers(supplierIds);
         this.createdAt = OffsetDateTime.now();
     }
 
     public void update(String partName, String cnCode, PartUnit unit,
-                        BigDecimal benchmarkFactor, Set<Long> supplierIds) {
+                        BigDecimal benchmarkFactor, Integer benchmarkFactorYear,
+                        Set<Long> supplierIds) {
         if (partName != null) {
             this.partName = partName;
         }
@@ -85,6 +101,9 @@ public class Part {
         }
         if (benchmarkFactor != null) {
             this.benchmarkFactor = benchmarkFactor;
+        }
+        if (benchmarkFactorYear != null) {
+            this.benchmarkFactorYear = benchmarkFactorYear;
         }
         if (supplierIds != null) {
             replaceSuppliers(supplierIds);
