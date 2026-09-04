@@ -74,7 +74,7 @@
               },
               "locator": {
                 "type": "string",
-                "description": "첨부 안의 위치. 문법은 명세 규약 시트 10항을 따른다 — xlsx:Sheet1!B7 · csv:row=42,col=3 · pdf:page=2,bbox=[72,540,180,556]. 메일 본문이면 body:line=3."
+                "description": "첨부 안의 위치. 문법은 명세 공통 규약 10항 — xlsx:Sheet1!C7 · csv:row=42,col=3 · pdf:page=2,bbox=[..] · body:offset=10-20. BE 의 submission.ExtractionField.sourceLocator 가 같은 문법을 저장한다(길이 1000)."
               }
             }
           }

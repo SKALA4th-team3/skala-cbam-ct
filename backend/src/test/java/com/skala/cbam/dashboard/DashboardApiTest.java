@@ -3,19 +3,19 @@ package com.skala.cbam.dashboard;
 import com.skala.cbam.dashboard.dto.DashboardAlertsResponse;
 import com.skala.cbam.dashboard.dto.DashboardResponse;
 import com.skala.cbam.dashboard.dto.DashboardStatus;
-import com.skala.cbam.dashboard.entity.Alert;
-import com.skala.cbam.dashboard.entity.AlertStatus;
-import com.skala.cbam.dashboard.entity.JudgementStatus;
-import com.skala.cbam.dashboard.entity.LifecycleStatus;
-import com.skala.cbam.dashboard.entity.Part;
-import com.skala.cbam.dashboard.entity.PartSupplier;
-import com.skala.cbam.dashboard.entity.SeverityCode;
-import com.skala.cbam.dashboard.entity.Submission;
-import com.skala.cbam.dashboard.entity.SubmissionStatus;
-import com.skala.cbam.dashboard.repository.AlertRepository;
-import com.skala.cbam.dashboard.repository.PartRepository;
-import com.skala.cbam.dashboard.repository.PartSupplierRepository;
-import com.skala.cbam.dashboard.repository.SubmissionRepository;
+import com.skala.cbam.dashboard.repository.DashboardAlertRepository;
+import com.skala.cbam.dashboard.repository.DashboardSubmissionRepository;
+import com.skala.cbam.parts.entity.Part;
+import com.skala.cbam.parts.entity.PartSupplier;
+import com.skala.cbam.parts.entity.PartUnit;
+import com.skala.cbam.parts.repository.PartsRepository;
+import com.skala.cbam.submission.domain.Alert;
+import com.skala.cbam.submission.domain.AlertStatus;
+import com.skala.cbam.submission.domain.Judgement;
+import com.skala.cbam.submission.domain.Severity;
+import com.skala.cbam.submission.domain.Submission;
+import com.skala.cbam.submission.domain.SubmissionStatus;
+import com.skala.cbam.submission.domain.ValidationOutcome;
 import com.skala.cbam.dashboard.service.DashboardService;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.repository.SupplierRepository;
@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.YearMonth;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,16 +57,15 @@ class DashboardApiTest {
     @Autowired
     private SupplierRepository supplierRepository;
     @Autowired
-    private PartRepository partRepository;
+    private PartsRepository partsRepository;
     @Autowired
-    private PartSupplierRepository partSupplierRepository;
+    private DashboardSubmissionRepository submissionRepository;
     @Autowired
-    private SubmissionRepository submissionRepository;
-    @Autowired
-    private AlertRepository alertRepository;
+    private DashboardAlertRepository alertRepository;
     @Autowired
     private WebApplicationContext context;
 
+    private static final java.time.ZoneOffset SEOUL = java.time.ZoneOffset.ofHours(9);
     private static final LocalDate REPORTING_MONTH = LocalDate.of(2026, 9, 1);
     private static final YearMonth MONTH = YearMonth.of(2026, 9);
 
@@ -81,23 +80,22 @@ class DashboardApiTest {
         Supplier daehan = supplierRepository.save(supplier("대한금속", "111-11-11111", "kim@daehan.co.kr"));
         seongjin = supplierRepository.save(supplier("성진스틸", "222-22-22222", "lee@seongjin.co.kr"));
 
-        Part part1 = partRepository.save(Part.builder().name("열연강판").build());
-        part2 = partRepository.save(Part.builder().name("봉강").build());
+        // Part 를 저장하면 supplierIds 만큼 PartSupplier 가 cascade 로 함께 만들어진다
+        Part part1 = partsRepository.save(part("PT-DASH-1", "열연강판", "72081000", daehan.getId()));
+        part2 = partsRepository.save(part("PT-DASH-2", "봉강", "72139110", seongjin.getId()));
 
         // target1 = 대한금속 x 열연강판 → 이번 달 적격 제출 있음
-        PartSupplier target1 = partSupplierRepository.save(
-                PartSupplier.builder().supplier(daehan).part(part1).status(LifecycleStatus.ACTIVE).build());
+        PartSupplier target1 = onlyTarget(part1);
         // target2 = 성진스틸 x 봉강 → 이번 달 제출 없음 (미제출)
-        PartSupplier target2 = partSupplierRepository.save(
-                PartSupplier.builder().supplier(seongjin).part(part2).status(LifecycleStatus.ACTIVE).build());
+        PartSupplier target2 = onlyTarget(part2);
 
         submissionRepository.save(Submission.builder()
                 .supplier(daehan)
-                .partSupplier(target1)
+                .partSupplierId(target1.getId())
                 .reportingMonth(REPORTING_MONTH)
                 .status(SubmissionStatus.CONFIRMED)
-                .judgement(JudgementStatus.QUALIFIED)
-                .submittedAt(LocalDateTime.of(2026, 9, 2, 14, 20))
+                .judgement(Judgement.QUALIFIED)
+                .submittedAt(at(2026, 9, 2, 14, 20))
                 .build());
 
         alertRepository.save(unsubmittedAlert(target2, "마감 D-7 경과 미제출"));
@@ -126,7 +124,7 @@ class DashboardApiTest {
         assertThat(response.content()).hasSize(1);
         DashboardAlertsResponse.AlertItem alert = response.content().get(0);
         assertThat(alert.ruleId()).isEqualTo("R1");
-        assertThat(alert.severity()).isEqualTo(SeverityCode.HIGH);
+        assertThat(alert.severity()).isEqualTo(Severity.HIGH);
         assertThat(alert.submissionId()).isNull();
         assertThat(alert.target().supplierId()).isEqualTo(seongjin.getId());
         assertThat(alert.target().partId()).isEqualTo(part2.getId());
@@ -177,7 +175,7 @@ class DashboardApiTest {
                 .supplier(noTarget)
                 .reportingMonth(REPORTING_MONTH)
                 .status(SubmissionStatus.REVIEW_PENDING)
-                .submittedAt(LocalDateTime.of(2026, 9, 2, 9, 0))
+                .submittedAt(at(2026, 9, 2, 9, 0))
                 .build());
 
         DashboardResponse response = dashboardService.getDashboard(MONTH, null);
@@ -207,8 +205,8 @@ class DashboardApiTest {
                 .supplier(saved)
                 .reportingMonth(REPORTING_MONTH)
                 .status(SubmissionStatus.CONFIRMED)
-                .judgement(JudgementStatus.QUALIFIED)
-                .submittedAt(LocalDateTime.of(2026, 9, 2, 9, 0))
+                .judgement(Judgement.QUALIFIED)
+                .submittedAt(at(2026, 9, 2, 9, 0))
                 .build());
 
         assertThat(dashboardService.getDashboard(MONTH, null).suppliers())
@@ -256,11 +254,25 @@ class DashboardApiTest {
         closed.deactivate("거래 종료");
         closed = supplierRepository.save(closed);
 
-        Part part3 = partRepository.save(Part.builder().name("형강").build());
-        PartSupplier target3 = partSupplierRepository.save(
-                PartSupplier.builder().supplier(closed).part(part3).status(LifecycleStatus.ACTIVE).build());
+        Part part3 = partsRepository.save(part("PT-DASH-3", "형강", "72161000", closed.getId()));
+        PartSupplier target3 = onlyTarget(part3);
 
         alertRepository.save(unsubmittedAlert(target3, "끊긴 업체 미제출"));
+    }
+
+    /** 서울 기준 시각. 정식 엔티티는 OffsetDateTime 을 쓴다. */
+    private static OffsetDateTime at(int year, int month, int day, int hour, int minute) {
+        return OffsetDateTime.of(year, month, day, hour, minute, 0, 0, SEOUL);
+    }
+
+    /** 이 테스트가 만드는 부품은 공급 협력업체가 하나뿐이다. */
+    private static PartSupplier onlyTarget(Part part) {
+        return part.getSuppliers().iterator().next();
+    }
+
+    private static Part part(String code, String name, String cnCode, Long supplierId) {
+        return new Part(code, name, cnCode, PartUnit.TON, new java.math.BigDecimal("1.8000"),
+                java.util.Set.of(supplierId));
     }
 
     private static Supplier supplier(String name, String businessNumber, String email) {
@@ -276,13 +288,15 @@ class DashboardApiTest {
 
     private static Alert unsubmittedAlert(PartSupplier target, String message) {
         return Alert.builder()
-                .partSupplier(target)
+                .partSupplierId(target.getId())
+                .checkId("SUBMISSION_MISSING")
+                .outcome(ValidationOutcome.FAIL)
                 .reportingMonth(REPORTING_MONTH)
                 .ruleId("R1")
-                .severity(SeverityCode.HIGH)
+                .severity(Severity.HIGH)
                 .message(message)
                 .status(AlertStatus.OPEN)
-                .validatedAt(LocalDateTime.of(2026, 9, 3, 9, 0))
+                .validatedAt(at(2026, 9, 3, 9, 0))
                 .build();
     }
 }

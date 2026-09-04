@@ -14,11 +14,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import com.skala.cbam.task.domain.TaskResourceType;
 
 /**
  * ERD task 테이블. 공통 규약 6항의 202 비동기 작업 봉투가 이 테이블을 가리킨다.
@@ -61,6 +65,14 @@ public class Task extends BaseTimeEntity {
     @JoinColumn(name = "feedback_draft_id")
     private FeedbackDraft feedbackDraft;
 
+    /** 22~25번 분석 작업이 읽은 접수 메일. ERD 의 task.mail_receipt_id. */
+    @Column(name = "mail_receipt_id")
+    private Long mailReceiptId;
+
+    /** 재판정 작업이 다시 본 제출 건. ERD 의 task.submission_id. */
+    @Column(name = "submission_id")
+    private Long submissionId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 30)
     private TaskType type;
@@ -85,6 +97,24 @@ public class Task extends BaseTimeEntity {
 
     @Column(name = "fallback_applied", nullable = false)
     private boolean fallbackApplied;
+
+    /**
+     * 이 작업이 만들어 낸 자원의 종류와 id — API 명세 v10 №19 의 {@code resourceType}·{@code resourceIds}.
+     *
+     * <p><b>ERD 가 이미 갖고 있던 컬럼이다</b>(ADR-0012). 단수 FK 로는 43번 일괄 생성이 만든
+     * 초안 N 개를 가리킬 수 없어서 목록으로 둔 것이다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "resource_type", length = 50)
+    private TaskResourceType resourceType;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "resource_ids")
+    private List<Long> resourceIds;
+
+    /** 25번 — 이 분석이 남긴 미등록 부품 수. ANALYZE_MAIL_RECEIPT 에서만 0 이 아니다. */
+    @Column(name = "unregistered_part_count", nullable = false)
+    private int unregisteredPartCount;
 
     /** SEND 계열 작업의 발송 시도 순번. */
     @Column(name = "attempt_number")
@@ -119,12 +149,16 @@ public class Task extends BaseTimeEntity {
     private OffsetDateTime completedAt;
 
     @Builder
-    private Task(Feedback feedback, FeedbackDraft feedbackDraft, TaskType type, TaskStatus status,
+    private Task(Feedback feedback, FeedbackDraft feedbackDraft, Long mailReceiptId, Long submissionId,
+                TaskType type, TaskStatus status,
                 int progressTotal, boolean fallbackApplied, Short attemptNumber, ResendReason resendReason,
                 String recipientEmail, String requestedBy) {
         this.id = "tsk-" + UUID.randomUUID().toString().substring(0, 8);
         this.feedback = feedback;
         this.feedbackDraft = feedbackDraft;
+        this.mailReceiptId = mailReceiptId;
+        this.submissionId = submissionId;
+        this.resourceIds = List.of();
         this.type = type;
         this.status = status;
         this.progressTotal = progressTotal;
@@ -136,6 +170,25 @@ public class Task extends BaseTimeEntity {
         this.recipientEmail = recipientEmail;
         this.requestedBy = requestedBy;
         this.startedAt = now();
+    }
+
+    /**
+     * 이 작업이 무엇을 만들었는지 남긴다 (№19 의 resourceType·resourceIds).
+     *
+     * <p>이 호출을 빠뜨리면 화면은 방금 만든 것을 찾지 못한다 — PR #31 리뷰에서 겪은 문제다.
+     * 만든 것이 없으면 종류도 남기지 않는다. 빈 목록에 종류만 붙어 있으면 화면이
+     * 「만들어졌는데 id 를 못 받았다」로 오해한다.
+     */
+    public void recordResult(TaskResourceType resourceType, List<Long> resourceIds) {
+        List<Long> ids = resourceIds == null ? List.of()
+                : resourceIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        this.resourceIds = ids;
+        this.resourceType = ids.isEmpty() ? null : resourceType;
+    }
+
+    /** 25번 — 분석이 남긴 미등록 부품 수. */
+    public void recordUnregisteredPartCount(int count) {
+        this.unregisteredPartCount = Math.max(0, count);
     }
 
     public void completeSuccessfully() {
@@ -154,11 +207,27 @@ public class Task extends BaseTimeEntity {
 
     /** 발송 실패도 이걸로 처리한다 — 이 메서드가 불리면 deliveryStatus 도 FAILED 로 채운다. */
     public void fail(String errorCode, String errorMessage) {
+        failWithoutDelivery(errorCode, errorMessage);
+        this.deliveryStatus = DeliveryStatus.FAILED;
+    }
+
+    /**
+     * 발송이 아닌 작업의 실패 (메일 분석·재판정·초안 생성).
+     *
+     * <p>{@link #deliveryStatus} 를 건드리지 않는다 — 이 클래스 설명대로 그 값은 발송 계열에서만
+     * 채운다. 분석 실패에 「발송 실패」가 함께 찍히면 발송 이력(51·53번)이 그것을 세게 된다.
+     */
+    public void failWithoutDelivery(String errorCode, String errorMessage) {
         this.status = TaskStatus.FAILED;
         this.progressFailed = this.progressTotal;
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
-        this.deliveryStatus = DeliveryStatus.FAILED;
         this.completedAt = now();
+    }
+
+    /** PENDING 으로 만든 작업이 실제로 돌기 시작했다 (202 로 시작한 비동기 작업). */
+    public void markProcessing() {
+        this.status = TaskStatus.PROCESSING;
+        this.startedAt = now();
     }
 }

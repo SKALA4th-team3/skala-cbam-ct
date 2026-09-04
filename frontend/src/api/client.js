@@ -149,6 +149,16 @@ export function logWiring() {
    실제 서버도 같은 계약을 지켜야 화면 코드를 안 고친다. */
 const tasks = new Map()
 
+/** 목의 kind → 명세 №19 의 taskType. 서버가 쓰는 이름과 같아야 화면이 한 벌로 돈다. */
+const TASK_TYPE = {
+  analyze: 'ANALYZE_MAIL_RECEIPT',
+  revalidate: 'REVALIDATE_SUBMISSION',
+  draft: 'GENERATE_FEEDBACK_DRAFT',
+  regenerate: 'REGENERATE_FEEDBACK_DRAFT',
+  send: 'SEND_FEEDBACK',
+  remind: 'SEND_REMINDER',
+}
+
 /** @param endpoint 'POST /...' — 화면이 부른 엔드포인트.
  *   내부 자동 실행(요구사항 20)처럼 부른 엔드포인트가 없으면 null 을 준다.
  *   경로 아닌 문자열을 넣으면 api:status 집계가 흐려진다. */
@@ -165,10 +175,26 @@ export function startTask(endpoint, kind, { ms = 2600, result = null, fail = fal
   return { status: 202, taskId: id, pollAfterMs: 1200 }
 }
 
+/** №19 GET /tasks/{taskId}. 목과 실서버가 **같은 모양**이라 변환할 것이 없다 —
+ *  목을 명세 모양으로 맞춰 둔 덕이다. .env 의 VITE_REAL_API 에 넣으면 그대로 실서버로 간다. */
 export async function getTask(id) {
   return request('GET /tasks/{taskId}', () => {
     const t = tasks.get(id)
     if (!t) throw new ApiError(404, 'TASK_NOT_FOUND', '해당 작업이 없습니다')
-    return { taskId: t.id, status: t.status, resultId: t.status === 'COMPLETED' ? t.result : null, error: t.error || null }
-  })
+    /* 명세 №19 응답 그대로. 전에는 { resultId, error } 라는 내 임의 모양이었는데
+       백엔드(CBAM-86)가 실제로 내보내는 것과 달라 화면이 두 번 고쳐질 뻔했다. */
+    const done = t.status === 'COMPLETED'
+    return {
+      taskId: t.id,
+      taskType: TASK_TYPE[t.kind] ?? 'ANALYZE_MAIL_RECEIPT',
+      status: t.status,
+      resourceType: done && t.result != null ? (t.resourceType ?? 'submission') : null,
+      resourceIds: done && t.result != null ? [t.result] : [],
+      progress: { total: 1, done: done ? 1 : 0, failed: t.status === 'FAILED' ? 1 : 0 },
+      fallbackApplied: Boolean(t.fallbackApplied),
+      unregisteredPartCount: t.unregisteredPartCount ?? 0,
+      errorCode: t.error?.code ?? null,
+      errorMessage: t.error?.message ?? null,
+    }
+  }, () => http('GET', `/tasks/${id}`))
 }

@@ -1,6 +1,6 @@
 package com.skala.cbam.dashboard.dto;
 
-import com.skala.cbam.dashboard.entity.SeverityCode;
+import com.skala.cbam.submission.domain.Severity;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ public record DashboardAlertsResponse(
             String supplierName,
             String partName,
             String ruleId,
-            SeverityCode severity,
+            Severity severity,
             String message,
             long dDay
     ) {}

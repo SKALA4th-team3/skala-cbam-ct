@@ -1,14 +1,9 @@
 package com.skala.cbam.submission.repository;
 
-import com.skala.cbam.submission.domain.Judgement;
-import com.skala.cbam.submission.domain.Severity;
 import com.skala.cbam.submission.domain.Submission;
-import com.skala.cbam.submission.domain.SubmissionStatus;
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,27 +17,12 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>partId 필터는 여기서 걸지 않는다 — partId → partSupplierId 변환이 부품 도메인 Port를
  * 거쳐야 해서, 그 결과를 서비스가 받아 메모리에서 거른다.
+ *
+ * <p>필터 조합은 {@link SubmissionSpecifications} 가 만든다 — 전달된 것만 조건이 된다.
+ * JPQL 의 {@code (:x is null or ...)} 는 PostgreSQL 에서 파라미터 타입 추론에 실패해 500 이 난다.
  */
-public interface SubmissionRepository extends JpaRepository<Submission, Long> {
-
-    @Query("""
-            select s from Submission s
-            join fetch s.supplier sup
-            where (:supplierId is null or sup.id = :supplierId)
-              and (:reportingMonth is null or s.reportingMonth = :reportingMonth)
-              and (:status is null or s.status = :status)
-              and (:judgement is null or s.judgement = :judgement)
-              and (:severity is null or s.severity = :severity)
-              and (:submittedFrom is null or s.submittedAt >= :submittedFrom)
-              and (:submittedTo is null or s.submittedAt <= :submittedTo)
-            """)
-    List<Submission> search(@Param("supplierId") Long supplierId,
-                             @Param("reportingMonth") LocalDate reportingMonth,
-                             @Param("status") SubmissionStatus status,
-                             @Param("judgement") Judgement judgement,
-                             @Param("severity") Severity severity,
-                             @Param("submittedFrom") OffsetDateTime submittedFrom,
-                             @Param("submittedTo") OffsetDateTime submittedTo);
+public interface SubmissionRepository extends JpaRepository<Submission, Long>,
+        JpaSpecificationExecutor<Submission> {
 
     @Query("select s from Submission s join fetch s.supplier where s.id = :id")
     Optional<Submission> findByIdWithSupplier(@Param("id") Long id);

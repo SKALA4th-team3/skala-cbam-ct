@@ -20,6 +20,7 @@ import com.skala.cbam.submission.error.SubmissionException;
 import com.skala.cbam.submission.repository.AlertRepository;
 import com.skala.cbam.submission.repository.ExtractionFieldRepository;
 import com.skala.cbam.submission.repository.SubmissionRepository;
+import com.skala.cbam.submission.repository.SubmissionSpecifications;
 import com.skala.cbam.submission.repository.UnregisteredPartRepository;
 import com.skala.cbam.submission.service.port.PartRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
@@ -64,9 +65,10 @@ public class SubmissionService {
     public PageResponse<SubmissionListItem> listSubmissions(
             SubmissionSearchCondition condition, int page, int size) {
 
-        List<Submission> filtered = submissionRepository.search(
+        List<Submission> filtered = submissionRepository.findAll(SubmissionSpecifications.matches(
                 condition.supplierId(), condition.reportingMonth(), condition.status(),
-                condition.judgement(), condition.severity(), condition.submittedFrom(), condition.submittedTo());
+                condition.judgement(), condition.severity(),
+                condition.submittedFrom(), condition.submittedTo()));
 
         if (condition.partId() != null) {
             Set<Long> matchedPartSupplierIds = partRelatedDataProvider
@@ -146,8 +148,8 @@ public class SubmissionService {
 
         // "이번 달에 이미 제출된 조합"은 상태와 무관하게 전부 걸러야 한다 — status 필터 때문에
         // 위에서 걸러진 실제 목록만 보면 진짜 미제출이 아닌데 미제출로 잘못 표시될 수 있다.
-        List<Submission> allThisMonth = submissionRepository.search(
-                condition.supplierId(), condition.reportingMonth(), null, null, null, null, null);
+        List<Submission> allThisMonth = submissionRepository.findAll(SubmissionSpecifications.matches(
+                condition.supplierId(), condition.reportingMonth(), null, null, null, null, null));
         Set<Long> covered = allThisMonth.stream()
                 .map(Submission::getPartSupplierId)
                 .filter(Objects::nonNull)

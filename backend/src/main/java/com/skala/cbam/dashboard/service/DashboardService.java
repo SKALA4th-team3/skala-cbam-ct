@@ -3,19 +3,20 @@ package com.skala.cbam.dashboard.service;
 import com.skala.cbam.dashboard.dto.DashboardAlertsResponse;
 import com.skala.cbam.dashboard.dto.DashboardResponse;
 import com.skala.cbam.dashboard.dto.DashboardStatus;
-import com.skala.cbam.dashboard.entity.Alert;
-import com.skala.cbam.dashboard.entity.AlertStatus;
-import com.skala.cbam.dashboard.entity.JudgementStatus;
-import com.skala.cbam.dashboard.entity.LifecycleStatus;
-import com.skala.cbam.dashboard.entity.PartSupplier;
-import com.skala.cbam.dashboard.entity.SeverityCode;
-import com.skala.cbam.dashboard.entity.Submission;
-import com.skala.cbam.dashboard.entity.SubmissionStatus;
-import com.skala.cbam.dashboard.repository.AlertRepository;
-import com.skala.cbam.dashboard.repository.PartSupplierRepository;
-import com.skala.cbam.dashboard.repository.SubmissionRepository;
+import com.skala.cbam.dashboard.repository.DashboardAlertRepository;
+import com.skala.cbam.dashboard.repository.DashboardPartSupplierRepository;
+import com.skala.cbam.dashboard.repository.DashboardSubmissionRepository;
+import com.skala.cbam.parts.entity.PartSupplier;
+import com.skala.cbam.parts.entity.PartSupplierStatus;
+import com.skala.cbam.submission.domain.Alert;
+import com.skala.cbam.submission.domain.AlertStatus;
+import com.skala.cbam.submission.domain.Judgement;
+import com.skala.cbam.submission.domain.Severity;
+import com.skala.cbam.submission.domain.Submission;
+import com.skala.cbam.submission.domain.SubmissionStatus;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.domain.SupplierStatus;
+import com.skala.cbam.supplier.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -55,23 +56,28 @@ public class DashboardService {
      */
     private static final DashboardStatus UNJUDGED_FALLBACK = DashboardStatus.UNQUALIFIED;
 
-    private final PartSupplierRepository partSupplierRepository;
-    private final SubmissionRepository submissionRepository;
-    private final AlertRepository alertRepository;
+    private final DashboardPartSupplierRepository partSupplierRepository;
+    private final DashboardSubmissionRepository submissionRepository;
+    private final DashboardAlertRepository alertRepository;
+    /**
+     * {@code PartSupplier.supplierId} · {@code Alert.partSupplierId} 가 연관이 아니라 값이라
+     * 협력업체는 id 로 따로 읽는다 — 정식 엔티티를 쓰기로 한 대가다(사본을 두면 부팅이 막힌다).
+     */
+    private final SupplierRepository supplierRepository;
 
     public DashboardResponse getDashboard(YearMonth month, DashboardStatus statusFilter) {
         LocalDate monthStart = month.atDay(1);
         LocalDate deadlineAt = month.atEndOfMonth();
         long dDay = ChronoUnit.DAYS.between(LocalDate.now(), deadlineAt);
 
-        List<PartSupplier> targets = partSupplierRepository.findAllWithPartAndSupplierByStatus(LifecycleStatus.ACTIVE);
+        List<PartSupplier> targets = partSupplierRepository.findActiveTargets(PartSupplierStatus.ACTIVE);
         List<Submission> submissions = submissionRepository.findAllByReportingMonthWithSupplier(monthStart);
 
         // target(part_supplier) 하나당 이번 달 "현재" 제출 — 여러 건이면 가장 최근 것을 쓴다
         Map<Long, Submission> latestByTarget = submissions.stream()
-                .filter(s -> s.getPartSupplier() != null)
+                .filter(s -> s.getPartSupplierId() != null)
                 .collect(Collectors.toMap(
-                        s -> s.getPartSupplier().getId(),
+                        Submission::getPartSupplierId,
                         Function.identity(),
                         (a, b) -> a.getSubmittedAt().isAfter(b.getSubmittedAt()) ? a : b));
 
@@ -95,12 +101,13 @@ public class DashboardService {
 
         Map<String, Long> severity = severityCounts(monthStart);
         List<DashboardResponse.SupplierSummary> suppliers =
-                buildSupplierSummaries(targets, submissions, statusByTarget, statusFilter);
+                buildSupplierSummaries(targets, submissions, statusByTarget, statusFilter,
+                        suppliersById(targets.stream().map(PartSupplier::getSupplierId).toList()));
 
         return new DashboardResponse(month.format(MONTH_FORMAT), deadlineAt, dDay, counts, ratio, severity, suppliers);
     }
 
-    public DashboardAlertsResponse getAlerts(YearMonth month, SeverityCode severity, String ruleId, int page, int size) {
+    public DashboardAlertsResponse getAlerts(YearMonth month, Severity severity, String ruleId, int page, int size) {
         LocalDate monthStart = month.atDay(1);
         LocalDate deadlineAt = month.atEndOfMonth();
         long dDay = ChronoUnit.DAYS.between(LocalDate.now(), deadlineAt);
@@ -108,8 +115,22 @@ public class DashboardService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Alert> result = alertRepository.search(monthStart, severity, ruleId, pageable);
 
+        // 경보가 가리키는 part_supplier 와 그 협력업체를 한 번에 읽는다 — 줄마다 조회하면 N+1 이다
+        List<Long> partSupplierIds = result.getContent().stream()
+                .flatMap(a -> java.util.stream.Stream.of(
+                        a.getPartSupplierId(),
+                        a.getSubmission() == null ? null : a.getSubmission().getPartSupplierId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, PartSupplier> partSupplierById = partSupplierIds.isEmpty() ? Map.of()
+                : partSupplierRepository.findAllById(partSupplierIds).stream()
+                        .collect(Collectors.toMap(PartSupplier::getId, Function.identity(), (a, b) -> a));
+        Map<Long, Supplier> supplierById = suppliersById(
+                partSupplierById.values().stream().map(PartSupplier::getSupplierId).distinct().toList());
+
         List<DashboardAlertsResponse.AlertItem> items = result.getContent().stream()
-                .map(alert -> toAlertItem(alert, dDay, month))
+                .map(alert -> toAlertItem(alert, dDay, month, partSupplierById, supplierById))
                 .toList();
 
         return new DashboardAlertsResponse(
@@ -124,7 +145,7 @@ public class DashboardService {
      * <p>⚠️ <b>판정 전(judgement = null) 제출을 부적격으로 세고 있다. 이건 임시값이고 틀렸다.</b>
      * 제출은 했으니 미제출이 아니고, 판정 전이니 적격도 부적격도 아니다 —
      * 그런데 counts 는 qualified·unqualified·notSubmitted <b>3버킷 고정</b>이고
-     * {@link com.skala.cbam.dashboard.entity.JudgementStatus} 에는 PENDING 이 없다.
+     * {@link Judgement} 에는 PENDING 이 없다.
      * <b>계약에 자리가 없어서</b> 여기서 임의로 고를 수 없다.
      *
      * <p>고치려면 counts 에 4번째 값을 넣거나 모수에서 빼야 하는데 <b>둘 다 API 명세 v10 24행을
@@ -138,9 +159,18 @@ public class DashboardService {
         if (current.getJudgement() == null) {
             return UNJUDGED_FALLBACK;
         }
-        return current.getJudgement() == JudgementStatus.QUALIFIED
+        return current.getJudgement() == Judgement.QUALIFIED
                 ? DashboardStatus.QUALIFIED
                 : DashboardStatus.UNQUALIFIED;
+    }
+
+    /** {@code supplierId} 목록으로 협력업체를 한 번에 읽는다 — 줄마다 조회하면 N+1 이 된다. */
+    private Map<Long, Supplier> suppliersById(List<Long> supplierIds) {
+        if (supplierIds.isEmpty()) {
+            return Map.of();
+        }
+        return supplierRepository.findAllById(supplierIds).stream()
+                .collect(Collectors.toMap(Supplier::getId, Function.identity(), (a, b) -> a));
     }
 
     private long countStatus(Map<Long, DashboardStatus> statusByTarget, DashboardStatus status) {
@@ -149,7 +179,7 @@ public class DashboardService {
 
     private Map<String, Long> severityCounts(LocalDate monthStart) {
         Map<String, Long> result = new LinkedHashMap<>();
-        for (SeverityCode code : SeverityCode.values()) {
+        for (Severity code : Severity.values()) {
             result.put(code.name(), 0L);
         }
         // 가정: "지금 열려 있는" 경보만 심각도별로 센다 (status=OPEN). 팀 확인 필요.
@@ -175,21 +205,27 @@ public class DashboardService {
             List<PartSupplier> targets,
             List<Submission> submissions,
             Map<Long, DashboardStatus> statusByTarget,
-            DashboardStatus statusFilter) {
+            DashboardStatus statusFilter,
+            Map<Long, Supplier> targetSuppliers) {
 
         Map<Long, List<PartSupplier>> targetsBySupplier = targets.stream()
-                .collect(Collectors.groupingBy(ps -> ps.getSupplier().getId()));
+                .collect(Collectors.groupingBy(PartSupplier::getSupplierId));
         Map<Long, List<Submission>> submissionsBySupplier = submissions.stream()
                 .filter(s -> s.getSupplier().getStatus() == SupplierStatus.ACTIVE)
                 .collect(Collectors.groupingBy(s -> s.getSupplier().getId()));
 
         Map<Long, Supplier> supplierById = new LinkedHashMap<>();
-        targets.forEach(ps -> supplierById.putIfAbsent(ps.getSupplier().getId(), ps.getSupplier()));
+        targets.forEach(ps -> {
+            Supplier supplier = targetSuppliers.get(ps.getSupplierId());
+            if (supplier != null) {
+                supplierById.putIfAbsent(ps.getSupplierId(), supplier);
+            }
+        });
         submissionsBySupplier.values().forEach(
                 list -> supplierById.putIfAbsent(list.get(0).getSupplier().getId(), list.get(0).getSupplier()));
 
         record Row(Long supplierId, String companyName, DashboardStatus status,
-                   long submissionCount, long pendingCount, SeverityCode maxSeverity) {}
+                   long submissionCount, long pendingCount, Severity maxSeverity) {}
 
         List<Row> rows = new ArrayList<>();
         for (Map.Entry<Long, Supplier> entry : supplierById.entrySet()) {
@@ -207,7 +243,7 @@ public class DashboardService {
             long pendingCount = supplierSubmissions.stream()
                     .filter(s -> s.getStatus() == SubmissionStatus.REVIEW_PENDING)
                     .count();
-            SeverityCode maxSeverity = supplierSubmissions.stream()
+            Severity maxSeverity = supplierSubmissions.stream()
                     .map(Submission::getSeverity)
                     .filter(Objects::nonNull)
                     .min(Comparator.comparingInt(this::severityPriority))
@@ -258,7 +294,7 @@ public class DashboardService {
         };
     }
 
-    private int severityPriority(SeverityCode severity) {
+    private int severityPriority(Severity severity) {
         if (severity == null) {
             return 3;
         }
@@ -275,25 +311,34 @@ public class DashboardService {
 
     // ── 39 조회 보조 ────────────────────────────────────────────────
 
-    private DashboardAlertsResponse.AlertItem toAlertItem(Alert alert, long dDay, YearMonth month) {
+    private DashboardAlertsResponse.AlertItem toAlertItem(
+            Alert alert, long dDay, YearMonth month,
+            Map<Long, PartSupplier> partSupplierById, Map<Long, Supplier> supplierById) {
+
         Long supplierId = null;
         Long partId = null;
         String supplierName = null;
         String partName = null;
 
-        if (alert.getPartSupplier() != null) {
-            supplierId = alert.getPartSupplier().getSupplier().getId();
-            partId = alert.getPartSupplier().getPart().getId();
-            supplierName = alert.getPartSupplier().getSupplier().getName();
-            partName = alert.getPartSupplier().getPart().getName();
+        PartSupplier alertTarget = alert.getPartSupplierId() == null ? null
+                : partSupplierById.get(alert.getPartSupplierId());
+
+        if (alertTarget != null) {
+            supplierId = alertTarget.getSupplierId();
+            partId = alertTarget.getPart().getId();
+            Supplier supplier = supplierById.get(alertTarget.getSupplierId());
+            supplierName = supplier == null ? null : supplier.getName();
+            partName = alertTarget.getPart().getPartName();
         } else if (alert.getSubmission() != null) {
             // part_supplier 를 못 찾는 경보(예: 미등록 부품 관련) — supplierId 는 submission 에서 알 수 있지만
             // partId/partName 은 모른다. 모르는 값은 채우지 않고 비워둔다.
             supplierId = alert.getSubmission().getSupplier().getId();
             supplierName = alert.getSubmission().getSupplier().getName();
-            if (alert.getSubmission().getPartSupplier() != null) {
-                partId = alert.getSubmission().getPartSupplier().getPart().getId();
-                partName = alert.getSubmission().getPartSupplier().getPart().getName();
+            PartSupplier fromSubmission = alert.getSubmission().getPartSupplierId() == null ? null
+                    : partSupplierById.get(alert.getSubmission().getPartSupplierId());
+            if (fromSubmission != null) {
+                partId = fromSubmission.getPart().getId();
+                partName = fromSubmission.getPart().getPartName();
             }
         }
 
