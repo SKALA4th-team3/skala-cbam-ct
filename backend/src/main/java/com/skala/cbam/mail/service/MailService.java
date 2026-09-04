@@ -12,6 +12,7 @@ import com.skala.cbam.mail.error.MailErrorCode;
 import com.skala.cbam.mail.error.MailException;
 import com.skala.cbam.mail.repository.AttachmentRepository;
 import com.skala.cbam.mail.repository.MailReceiptRepository;
+import com.skala.cbam.mail.repository.MailReceiptSpecifications;
 import com.skala.cbam.mail.service.port.MailRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.domain.SupplierStatus;
@@ -42,8 +43,8 @@ public class MailService {
     // ── 15번: 접수 이력 조회 ────────────────────────────────────────
 
     public PageResponse<MailReceiptListItem> listReceipts(MailReceiptSearchCondition condition, Pageable pageable) {
-        Page<MailReceipt> page = mailReceiptRepository.search(
-                condition.supplierId(), condition.status(), condition.receivedFrom(), condition.receivedTo(), pageable);
+        Page<MailReceipt> page = mailReceiptRepository.findAll(MailReceiptSpecifications.matches(
+                condition.supplierId(), condition.status(), condition.receivedFrom(), condition.receivedTo()), pageable);
 
         List<MailReceiptListItem> content = page.getContent().stream().map(this::toListItem).toList();
         return PageResponse.of(page, content);

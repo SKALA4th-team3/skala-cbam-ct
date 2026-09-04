@@ -24,9 +24,15 @@
 ## 실행
 
 ```bash
-cp .env.example .env          # 값을 채운다. .env 는 커밋되지 않는다
+cp .env.example .env          # DB_USERNAME·DB_PASSWORD 값을 채운다. .env 는 커밋되지 않는다
+docker compose up -d
+set -a && source .env && set +a
+export SPRING_PROFILES_ACTIVE=dev
 
-cd backend  && ./gradlew bootRun            # http://localhost:8080
+# 새 터미널에서 실행한다.
+cd backend && ./gradlew bootRun              # http://localhost:8080
+
+# 다른 터미널에서 실행한다.
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
