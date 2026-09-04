@@ -1,19 +1,33 @@
 package com.skala.cbam.products.service;
 
 import com.skala.cbam.products.domain.Product;
+import com.skala.cbam.products.domain.Product.PartComposition;
+import com.skala.cbam.products.domain.ProductCalculationStatus;
 import com.skala.cbam.products.dto.ProductCreateRequest;
 import com.skala.cbam.products.dto.ProductCreateResponse;
+import com.skala.cbam.products.dto.ProductDetailResponse;
+import com.skala.cbam.products.dto.ProductListResponse;
+import com.skala.cbam.products.dto.ProductUpdateRequest;
+import com.skala.cbam.products.dto.ProductUpdateResponse;
 import com.skala.cbam.products.error.ProductErrorCode;
 import com.skala.cbam.products.error.ProductException;
+import com.skala.cbam.products.repository.ProductSpecifications;
 import com.skala.cbam.products.repository.ProductsRepository;
 import com.skala.cbam.products.service.port.ProductRelatedDataProvider;
+import com.skala.cbam.products.service.port.ProductRelatedDataProvider.ProductPartData;
 import com.skala.cbam.products.service.port.ProductRelatedDataProvider.ProductPartReference;
 import com.skala.cbam.products.service.port.ProductRelatedDataProvider.RequestedPart;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ProductsService {
 
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final Set<String> EU_COUNTRY_CODES = Set.of(
             "AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE",
             "ES", "FI", "FR", "GR", "HU", "IE", "IT", "LT", "LU",
@@ -29,56 +44,229 @@ public class ProductsService {
     private final ProductsRepository productsRepository;
     private final ProductRelatedDataProvider relatedDataProvider;
 
-    public ProductsService(
-            ProductsRepository productsRepository,
-            ProductRelatedDataProvider relatedDataProvider) {
+    public ProductsService(ProductsRepository productsRepository,
+                           ProductRelatedDataProvider relatedDataProvider) {
         this.productsRepository = productsRepository;
         this.relatedDataProvider = relatedDataProvider;
     }
 
     @Transactional
     public ProductCreateResponse create(ProductCreateRequest request) {
-        validateRequest(request);
-
-        List<RequestedPart> requestedParts = request.parts().stream()
+        validateCreateRequest(request);
+        List<ProductPartReference> references = resolveReferences(request.parts().stream()
                 .map(part -> new RequestedPart(part.partId(), part.supplierId()))
-                .toList();
-        List<ProductPartReference> references = relatedDataProvider
-                .getActivePartSuppliers(requestedParts);
-
+                .toList());
         Product product = new Product(
                 request.productName(), request.cnCode(), request.annualExportTon());
         request.exportCountries().forEach(product::addExportCountry);
         for (int index = 0; index < request.parts().size(); index++) {
-            product.addPart(
-                    references.get(index).partSupplier(),
+            product.addPart(references.get(index).partSupplier(),
                     request.parts().get(index).inputQtyPerTon());
         }
-
         Product saved = productsRepository.save(product);
-        return toResponse(saved, request, references);
+        return toCreateResponse(saved, relatedDataProvider.getProductPartData(
+                saved.getParts(), currentMonth()));
     }
 
-    private void validateRequest(ProductCreateRequest request) {
+    @Transactional
+    public ProductUpdateResponse update(Long productId, ProductUpdateRequest request) {
+        Product product = getOrThrow(productId);
+        if (request.annualExportTon() != null) {
+            validateAnnualExportTon(request.annualExportTon());
+            product.update(request.annualExportTon());
+        }
+        if (request.exportCountries() != null) {
+            validateExportCountries(request.exportCountries());
+            product.replaceExportCountries(request.exportCountries());
+        }
+        if (request.parts() != null) {
+            validateUpdateParts(request.parts());
+            List<ProductPartReference> references = resolveReferences(request.parts().stream()
+                    .map(part -> new RequestedPart(part.partId(), part.supplierId()))
+                    .toList());
+            List<PartComposition> compositions = java.util.stream.IntStream
+                    .range(0, request.parts().size())
+                    .mapToObj(index -> new PartComposition(
+                            references.get(index).partSupplier(),
+                            request.parts().get(index).inputQtyPerTon()))
+                    .toList();
+            product.replaceParts(compositions);
+        }
+        Product saved = productsRepository.saveAndFlush(product);
+        List<ProductPartData> data = relatedDataProvider.getProductPartData(
+                saved.getParts(), currentMonth());
+        List<ProductUpdateResponse.PartResponse> parts = java.util.stream.IntStream
+                .range(0, saved.getParts().size())
+                .mapToObj(index -> new ProductUpdateResponse.PartResponse(
+                        data.get(index).partId(), data.get(index).supplierId(),
+                        saved.getParts().get(index).getInputQtyPerTon(),
+                        data.get(index).submissionStatus()))
+                .toList();
+        return new ProductUpdateResponse(saved.getId(), saved.getAnnualExportTon(),
+                countryCodes(saved), parts, saved.getUpdatedAt());
+    }
+
+    public ProductListResponse list(String search, String cnCode, String reportingMonth,
+                                    ProductCalculationStatus calculationStatus,
+                                    Pageable pageable) {
+        validatePageable(pageable);
+        YearMonth month = parseReportingMonth(reportingMonth);
+        Sort sort = productSort(pageable.getSort());
+        List<ProductListResponse.Item> matched = productsRepository
+                .findAll(ProductSpecifications.search(search, cnCode), sort)
+                .stream()
+                .map(product -> toListItem(product, month))
+                .filter(item -> calculationStatus == null
+                        || item.calculationStatus() == calculationStatus)
+                .toList();
+        int from = Math.min((int) pageable.getOffset(), matched.size());
+        int to = Math.min(from + pageable.getPageSize(), matched.size());
+        int totalPages = matched.isEmpty() ? 0
+                : (int) Math.ceil((double) matched.size() / pageable.getPageSize());
+        return new ProductListResponse(month, matched.subList(from, to),
+                pageable.getPageNumber(), pageable.getPageSize(), matched.size(), totalPages);
+    }
+
+    public ProductDetailResponse getDetail(Long productId, String reportingMonth) {
+        Product product = getOrThrow(productId);
+        YearMonth month = parseReportingMonth(reportingMonth);
+        List<ProductPartData> data = relatedDataProvider.getProductPartData(
+                product.getParts(), month);
+        Calculation calculation = calculate(product, data);
+        List<ProductDetailResponse.PartResponse> parts = java.util.stream.IntStream
+                .range(0, product.getParts().size())
+                .mapToObj(index -> {
+                    ProductPartData item = data.get(index);
+                    BigDecimal contribution = isConfirmed(item)
+                            ? multiply(item.emissionIntensity(),
+                                    product.getParts().get(index).getInputQtyPerTon())
+                            : null;
+                    return new ProductDetailResponse.PartResponse(
+                            item.partId(), item.partName(), item.supplierId(),
+                            item.supplierName(), product.getParts().get(index).getInputQtyPerTon(),
+                            item.submissionStatus(), item.emissionIntensity(), contribution);
+                })
+                .toList();
+        List<Long> missingPartIds = data.stream()
+                .filter(item -> !isConfirmed(item))
+                .map(ProductPartData::partId)
+                .distinct()
+                .toList();
+        return new ProductDetailResponse(
+                product.getId(), product.getName(), product.getCnCode(), countryCodes(product),
+                product.getAnnualExportTon(), month, calculation.actualEmission(),
+                calculation.status(), calculation.benchmarkEmission(),
+                calculation.appliedFactorYear(), calculation.defaultValueRatio(),
+                parts, missingPartIds);
+    }
+
+    private ProductListResponse.Item toListItem(Product product, YearMonth month) {
+        Calculation calculation = calculate(product,
+                relatedDataProvider.getProductPartData(product.getParts(), month));
+        BigDecimal gapRatio = calculation.actualEmission() == null
+                || calculation.benchmarkEmission().signum() == 0
+                ? null
+                : calculation.actualEmission().subtract(calculation.benchmarkEmission())
+                        .divide(calculation.benchmarkEmission(), 4, RoundingMode.HALF_UP);
+        return new ProductListResponse.Item(
+                product.getId(), product.getName(), product.getCnCode(),
+                product.getAnnualExportTon(), product.getParts().size(),
+                calculation.benchmarkEmission(), calculation.actualEmission(), gapRatio,
+                calculation.status(), calculation.unconfirmedPartCount());
+    }
+
+    private Calculation calculate(Product product, List<ProductPartData> data) {
+        BigDecimal benchmark = BigDecimal.ZERO;
+        BigDecimal actual = BigDecimal.ZERO;
+        int unconfirmed = 0;
+        Set<Integer> factorYears = new HashSet<>();
+        Set<BigDecimal> defaultValueRatios = new HashSet<>();
+        for (int index = 0; index < product.getParts().size(); index++) {
+            BigDecimal quantity = product.getParts().get(index).getInputQtyPerTon();
+            ProductPartData item = data.get(index);
+            benchmark = benchmark.add(multiply(item.benchmarkFactor(), quantity));
+            if (!isConfirmed(item)) {
+                unconfirmed++;
+                continue;
+            }
+            BigDecimal contribution = multiply(item.emissionIntensity(), quantity);
+            actual = actual.add(contribution);
+            if (item.defaultValueRatio() != null) {
+                defaultValueRatios.add(item.defaultValueRatio().stripTrailingZeros());
+            }
+            if (item.appliedFactorYear() != null) {
+                factorYears.add(item.appliedFactorYear());
+            }
+        }
+        boolean complete = unconfirmed == 0;
+        Integer factorYear = complete && factorYears.size() == 1
+                ? factorYears.iterator().next() : null;
+        BigDecimal defaultValueRatio = complete && defaultValueRatios.size() == 1
+                ? defaultValueRatios.iterator().next() : null;
+        return new Calculation(benchmark.setScale(4, RoundingMode.HALF_UP),
+                complete ? actual.setScale(4, RoundingMode.HALF_UP) : null,
+                complete ? ProductCalculationStatus.COMPLETE : ProductCalculationStatus.INCOMPLETE,
+                unconfirmed, factorYear, defaultValueRatio);
+    }
+
+    private boolean isConfirmed(ProductPartData data) {
+        return "CONFIRMED".equals(data.submissionStatus())
+                && data.emissionIntensity() != null;
+    }
+
+    private BigDecimal multiply(BigDecimal left, BigDecimal right) {
+        return left.multiply(right).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private List<ProductPartReference> resolveReferences(List<RequestedPart> requestedParts) {
+        return relatedDataProvider.getActivePartSuppliers(requestedParts);
+    }
+
+    private Product getOrThrow(Long productId) {
+        return productsRepository.findById(productId)
+                .orElseThrow(() -> new ProductException(ProductErrorCode.PRODUCT_NOT_FOUND));
+    }
+
+    private void validateCreateRequest(ProductCreateRequest request) {
         if (request.cnCode() == null || !request.cnCode().matches("\\d{8}")) {
             throw new ProductException(ProductErrorCode.INVALID_CN_CODE);
         }
-        if (request.annualExportTon() == null
-                || request.annualExportTon().signum() < 0
-                || exceedsDigits(request.annualExportTon(), 10, 2)) {
+        validateAnnualExportTon(request.annualExportTon());
+        validateCreateParts(request.parts());
+        validateExportCountries(request.exportCountries());
+    }
+
+    private void validateAnnualExportTon(BigDecimal value) {
+        if (value == null || value.signum() < 0 || exceedsDigits(value, 10, 2)) {
             throw new ProductException(ProductErrorCode.OUT_OF_RANGE,
                     Map.of("field", "annualExportTon"));
         }
-        for (ProductCreateRequest.PartRequest part : request.parts()) {
-            if (part.inputQtyPerTon() == null
-                    || part.inputQtyPerTon().signum() <= 0
+    }
+
+    private void validateCreateParts(List<ProductCreateRequest.PartRequest> parts) {
+        validatePartValues(parts.stream().map(part -> new PartValues(
+                part.partId(), part.supplierId(), part.inputQtyPerTon())).toList());
+    }
+
+    private void validateUpdateParts(List<ProductUpdateRequest.PartRequest> parts) {
+        validatePartValues(parts.stream().map(part -> new PartValues(
+                part.partId(), part.supplierId(), part.inputQtyPerTon())).toList());
+    }
+
+    private void validatePartValues(List<PartValues> parts) {
+        Set<RequestedPart> unique = new HashSet<>();
+        for (PartValues part : parts) {
+            if (part.inputQtyPerTon() == null || part.inputQtyPerTon().signum() <= 0
                     || exceedsDigits(part.inputQtyPerTon(), 7, 3)) {
                 throw new ProductException(ProductErrorCode.OUT_OF_RANGE,
                         Map.of("field", "parts.inputQtyPerTon"));
             }
+            RequestedPart key = new RequestedPart(part.partId(), part.supplierId());
+            if (!unique.add(key)) {
+                throw new ProductException(ProductErrorCode.DUPLICATE_PRODUCT_PART,
+                        Map.of("partId", part.partId(), "supplierId", part.supplierId()));
+            }
         }
-        validateExportCountries(request.exportCountries());
-        validateProductParts(request.parts());
     }
 
     private void validateExportCountries(List<String> countryCodes) {
@@ -95,49 +283,74 @@ public class ProductsService {
         }
     }
 
-    private void validateProductParts(List<ProductCreateRequest.PartRequest> parts) {
-        Set<RequestedPart> unique = new HashSet<>();
-        for (ProductCreateRequest.PartRequest part : parts) {
-            RequestedPart key = new RequestedPart(part.partId(), part.supplierId());
-            if (!unique.add(key)) {
-                throw new ProductException(ProductErrorCode.DUPLICATE_PRODUCT_PART,
-                        Map.of("partId", part.partId(), "supplierId", part.supplierId()));
-            }
+    private YearMonth parseReportingMonth(String value) {
+        if (value == null || value.isBlank()) {
+            return currentMonth();
+        }
+        try {
+            return YearMonth.parse(value);
+        } catch (DateTimeParseException exception) {
+            throw new ProductException(ProductErrorCode.INVALID_PARAMETER,
+                    Map.of("field", "reportingMonth"));
         }
     }
 
-    private boolean exceedsDigits(BigDecimal value, int maxIntegerDigits, int maxFractionDigits) {
+    private void validatePageable(Pageable pageable) {
+        if (pageable.getPageNumber() < 0 || pageable.getPageSize() < 1
+                || pageable.getPageSize() > 100) {
+            throw new ProductException(ProductErrorCode.INVALID_PARAMETER,
+                    Map.of("field", "page/size"));
+        }
+    }
+
+    private Sort productSort(Sort requested) {
+        List<Sort.Order> orders = requested.stream().map(order -> {
+            String property = switch (order.getProperty()) {
+                case "productName" -> "name";
+                case "cnCode", "annualExportTon" -> order.getProperty();
+                default -> throw new ProductException(ProductErrorCode.INVALID_PARAMETER,
+                        Map.of("field", "sort", "value", order.getProperty()));
+            };
+            return new Sort.Order(order.getDirection(), property);
+        }).toList();
+        return Sort.by(orders);
+    }
+
+    private boolean exceedsDigits(BigDecimal value, int integers, int fractions) {
         BigDecimal normalized = value.stripTrailingZeros();
         int fractionDigits = Math.max(normalized.scale(), 0);
         int integerDigits = Math.max(normalized.precision() - normalized.scale(), 0);
-        return integerDigits > maxIntegerDigits || fractionDigits > maxFractionDigits;
+        return integerDigits > integers || fractionDigits > fractions;
     }
 
-    private ProductCreateResponse toResponse(
-            Product product,
-            ProductCreateRequest request,
-            List<ProductPartReference> references) {
-        List<ProductCreateResponse.PartResponse> parts = java.util.stream.IntStream
-                .range(0, request.parts().size())
-                .mapToObj(index -> {
-                    ProductCreateRequest.PartRequest requested = request.parts().get(index);
-                    ProductPartReference reference = references.get(index);
-                    return new ProductCreateResponse.PartResponse(
-                            reference.partId(),
-                            reference.partName(),
-                            reference.supplierId(),
-                            reference.supplierName(),
-                            requested.inputQtyPerTon(),
-                            null);
-                })
+    private List<String> countryCodes(Product product) {
+        return product.getExportCountries().stream()
+                .map(country -> country.getCountryCode())
                 .toList();
+    }
 
-        return new ProductCreateResponse(
-                product.getId(),
-                product.getName(),
-                product.getCnCode(),
-                request.exportCountries(),
-                product.getAnnualExportTon(),
-                parts);
+    private ProductCreateResponse toCreateResponse(Product product, List<ProductPartData> data) {
+        List<ProductCreateResponse.PartResponse> parts = java.util.stream.IntStream
+                .range(0, product.getParts().size())
+                .mapToObj(index -> new ProductCreateResponse.PartResponse(
+                        data.get(index).partId(), data.get(index).partName(),
+                        data.get(index).supplierId(), data.get(index).supplierName(),
+                        product.getParts().get(index).getInputQtyPerTon(),
+                        data.get(index).submissionStatus()))
+                .toList();
+        return new ProductCreateResponse(product.getId(), product.getName(), product.getCnCode(),
+                countryCodes(product), product.getAnnualExportTon(), parts);
+    }
+
+    private YearMonth currentMonth() {
+        return YearMonth.now(SEOUL);
+    }
+
+    private record PartValues(Long partId, Long supplierId, BigDecimal inputQtyPerTon) {
+    }
+
+    private record Calculation(BigDecimal benchmarkEmission, BigDecimal actualEmission,
+                               ProductCalculationStatus status, int unconfirmedPartCount,
+                               Integer appliedFactorYear, BigDecimal defaultValueRatio) {
     }
 }

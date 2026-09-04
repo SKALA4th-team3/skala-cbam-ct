@@ -7,10 +7,15 @@ import com.skala.cbam.parts.repository.PartSupplierRepository;
 import com.skala.cbam.parts.repository.PartsRepository;
 import com.skala.cbam.products.error.ProductErrorCode;
 import com.skala.cbam.products.error.ProductException;
+import com.skala.cbam.products.domain.ProductPart;
+import com.skala.cbam.products.repository.ProductSubmissionRepository;
 import com.skala.cbam.products.service.port.ProductRelatedDataProvider;
+import com.skala.cbam.submission.domain.Submission;
 import com.skala.cbam.supplier.domain.Supplier;
 import com.skala.cbam.supplier.repository.SupplierRepository;
+import java.time.YearMonth;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,14 +29,55 @@ public class JpaProductRelatedDataProvider implements ProductRelatedDataProvider
     private final PartsRepository partsRepository;
     private final PartSupplierRepository partSupplierRepository;
     private final SupplierRepository supplierRepository;
+    private final ProductSubmissionRepository productSubmissionRepository;
 
     public JpaProductRelatedDataProvider(
             PartsRepository partsRepository,
             PartSupplierRepository partSupplierRepository,
-            SupplierRepository supplierRepository) {
+            SupplierRepository supplierRepository,
+            ProductSubmissionRepository productSubmissionRepository) {
         this.partsRepository = partsRepository;
         this.partSupplierRepository = partSupplierRepository;
         this.supplierRepository = supplierRepository;
+        this.productSubmissionRepository = productSubmissionRepository;
+    }
+
+    @Override
+    public List<ProductPartData> getProductPartData(
+            List<ProductPart> productParts, YearMonth reportingMonth) {
+        if (productParts.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> supplierIds = productParts.stream()
+                .map(productPart -> productPart.getPartSupplier().getSupplierId())
+                .collect(Collectors.toSet());
+        Map<Long, Supplier> suppliersById = byId(
+                supplierRepository.findAllById(supplierIds), Supplier::getId);
+        Set<Long> relationIds = productParts.stream()
+                .map(productPart -> productPart.getPartSupplier().getId())
+                .collect(Collectors.toSet());
+
+        Map<Long, Submission> latestSubmissionByRelation = new LinkedHashMap<>();
+        productSubmissionRepository
+                .findByPartSupplierIdInAndReportingMonthOrderBySubmittedAtDesc(
+                        relationIds, reportingMonth.atDay(1))
+                .forEach(submission -> latestSubmissionByRelation.putIfAbsent(
+                        submission.getPartSupplierId(), submission));
+
+        return productParts.stream().map(productPart -> {
+            PartSupplier relation = productPart.getPartSupplier();
+            Part part = relation.getPart();
+            Supplier supplier = suppliersById.get(relation.getSupplierId());
+            Submission submission = latestSubmissionByRelation.get(relation.getId());
+            return new ProductPartData(
+                    part.getId(), part.getPartName(), relation.getSupplierId(),
+                    supplier == null ? null : supplier.getName(), relation.getId(),
+                    part.getBenchmarkFactor(),
+                    submission == null ? "NOT_SUBMITTED" : submission.getStatus().name(),
+                    submission == null ? null : submission.calculateEmissionIntensity(),
+                    submission == null ? null : submission.getAppliedFactorYear(),
+                    submission == null ? null : submission.getDefaultValueRatio());
+        }).toList();
     }
 
     @Override

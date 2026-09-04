@@ -19,6 +19,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "product")
@@ -62,5 +64,41 @@ public class Product extends BaseTimeEntity {
 
     public void addPart(PartSupplier partSupplier, BigDecimal inputQtyPerTon) {
         parts.add(new ProductPart(this, partSupplier, inputQtyPerTon));
+    }
+
+    public void update(BigDecimal annualExportTon) {
+        if (annualExportTon != null) {
+            this.annualExportTon = annualExportTon;
+        }
+    }
+
+    public void replaceExportCountries(List<String> countryCodes) {
+        Set<String> requested = Set.copyOf(countryCodes);
+        exportCountries.removeIf(country -> !requested.contains(country.getCountryCode()));
+        Set<String> existing = exportCountries.stream()
+                .map(ProductExportCountry::getCountryCode)
+                .collect(Collectors.toSet());
+        countryCodes.stream()
+                .filter(code -> !existing.contains(code))
+                .forEach(this::addExportCountry);
+    }
+
+    public void replaceParts(List<PartComposition> compositions) {
+        Set<Long> requestedIds = compositions.stream()
+                .map(composition -> composition.partSupplier().getId())
+                .collect(Collectors.toSet());
+        parts.removeIf(part -> !requestedIds.contains(part.getPartSupplier().getId()));
+        for (PartComposition composition : compositions) {
+            parts.stream()
+                    .filter(part -> part.getPartSupplier().getId()
+                            .equals(composition.partSupplier().getId()))
+                    .findFirst()
+                    .ifPresentOrElse(
+                            part -> part.updateInputQtyPerTon(composition.inputQtyPerTon()),
+                            () -> addPart(composition.partSupplier(), composition.inputQtyPerTon()));
+        }
+    }
+
+    public record PartComposition(PartSupplier partSupplier, BigDecimal inputQtyPerTon) {
     }
 }
