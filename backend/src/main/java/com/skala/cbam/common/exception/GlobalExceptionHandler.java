@@ -1,6 +1,8 @@
 package com.skala.cbam.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -29,7 +32,8 @@ public class GlobalExceptionHandler {
         log.warn(
             "업무 예외 발생: code={}, path={}",
             errorCode.getCode(),
-            request.getRequestURI()
+            request.getRequestURI(),
+            exception
         );
 
         ErrorResponse response = ErrorResponse.of(
@@ -41,6 +45,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .status(errorCode.getHttpStatus())
             .body(response);
+    }
+
+    // @Validated를 사용한 요청 파라미터의 범위 검증 실패를 처리한다.
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+        ConstraintViolationException exception,
+        HttpServletRequest request
+    ) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (ConstraintViolation<?> violation : exception.getConstraintViolations()) {
+            String path = violation.getPropertyPath().toString();
+            int lastDot = path.lastIndexOf('.');
+            String field = lastDot < 0 ? path : path.substring(lastDot + 1);
+            fieldErrors.put(field, violation.getMessage());
+        }
+
+        ErrorCode errorCode = ErrorCode.INVALID_PARAMETER;
+        return ResponseEntity
+            .status(errorCode.getHttpStatus())
+            .body(ErrorResponse.of(
+                errorCode,
+                request.getRequestURI(),
+                Map.of("fieldErrors", fieldErrors)
+            ));
     }
 
     // @Valid를 사용한 요청 본문의 유효성 검증 실패를 처리한다.
@@ -114,27 +142,4 @@ public class GlobalExceptionHandler {
             );
     }
 
-    // 앞에서 처리하지 못한 예상 밖의 모든 서버 예외를 처리한다.
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpectedException(
-        Exception exception,
-        HttpServletRequest request
-    ) {
-        log.error(
-            "처리되지 않은 예외 발생: path={}",
-            request.getRequestURI(),
-            exception
-        );
-
-        ErrorCode errorCode = ErrorCode.INTERNAL_ERROR;
-
-        return ResponseEntity
-            .status(errorCode.getHttpStatus())
-            .body(
-                ErrorResponse.of(
-                    errorCode,
-                    request.getRequestURI()
-                )
-            );
-    }
 }

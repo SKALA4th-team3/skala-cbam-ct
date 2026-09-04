@@ -1,0 +1,20 @@
+/* CBAM CT 디자인 토큰 — Figma 01 Foundation 과 1:1 */
+:root{
+--bg:#09090B; --surface:#111114; --surface-2:#17171B; --hair:#232327; --hair-2:#2F2F35;
+  --text:#F5F5F6; --text-2:#B4B5BC; --muted:#8A8B92; --faint:#5F6067;
+  --missing:#E5484D; --missing-t:#FF8A8E; --missing-bg:rgba(229,72,77,.14); --missing-soft:rgba(229,72,77,.42);
+  --anomaly:#E0701E; --anomaly-t:#F5A462; --anomaly-bg:rgba(224,112,30,.14);
+  --expiring:#B08D00; --expiring-t:#E3CF72; --expiring-bg:rgba(176,141,0,.16);
+  --reject:#3E7BD8; --reject-t:#A9C6F5; --reject-bg:rgba(62,123,216,.20);
+  --incomplete:#3E7BD8; --incomplete-t:#A9C6F5; --incomplete-bg:rgba(62,123,216,.18);
+  --processing:#98A2B2; --processing-t:#CFD6E0; --processing-bg:rgba(152,162,178,.20);
+  --complete:#2E9A5B; --complete-t:#86D9A5; --complete-bg:rgba(46,154,91,.14);
+
+  /* 레이아웃 */
+  --page: 1000px;
+  --content: 936px;
+  --radius-s: 8px;
+  --radius-m: 10px;
+  --radius-l: 12px;
+  --ease: cubic-bezier(.2,.7,.2,1);
+}
