@@ -50,7 +50,8 @@ docs/decisions/0001-ai-response-schema.md
 | [ADR-0007](0007-supplier-list-default-sort.md) | 협력업체 목록 기본 정렬은 업체명순(`companyName`) (4번) |
 | [ADR-0008](0008-feedback-history-list-endpoint.md) | 발송 이력 전체 조회 경로를 명세에 더한다 (51번·53번) |
 | [ADR-0009](0009-no-paging-on-list-screens.md) | 목록 화면은 페이징하지 않는다 — 전량을 받아 브라우저에서 거른다 |
-| [ADR-0010](0010-postgresql-development-and-init-sql.md) | 개발·운영 DB를 PostgreSQL로 통일하고 초기화 SQL로 구성한다 |
+| [ADR-0010](0010-ai-response-json-schema.md) | AI 응답 JSON 규격은 화면이 이미 읽는 모양에서 뽑는다 (22~25번 · 42~46번) |
+| [ADR-0011](0011-postgresql-development-and-init-sql.md) | 개발·운영 DB를 PostgreSQL로 통일하고 초기화 SQL로 구성한다 |
 
 
 ## 앞으로 예상되는 것
