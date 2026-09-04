@@ -1,95 +1,96 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "cbam/extraction/v1",
+  "$id": "cbam/extraction/v2",
   "title": "제출자료 추출 결과 (요구사항 22~25번 · UC-05)",
-  "description": "협력사가 보낸 메일 본문과 첨부에서 배출 항목을 뽑아 표준 단위로 옮긴 결과. 모르는 값은 채우지 않고 value 를 null 로 두고 note 에 사유를 남긴다 (24번).",
+  "description": "협력사가 보낸 메일 본문과 첨부에서 배출 항목을 뽑아 표준 단위로 옮긴 결과. API 명세 v10 №21 의 activityData·unregisteredParts 로 옮겨 저장된다. 모르는 값은 채우지 않고 value 를 null 로 두고 사유를 남긴다 (24번).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["status", "failure", "sourceLanguage", "reportingMonth", "productionCountry", "items", "parts"],
+  "required": ["status", "failureReason", "sourceLanguage", "items", "unregisteredParts"],
   "properties": {
     "status": {
       "type": "string",
-      "enum": ["EXTRACTED", "ANALYSIS_FAILED"],
-      "description": "ANALYSIS_FAILED 는 22번 「암호가 걸렸거나 파싱 실패」다. 그때 items 와 parts 는 빈 배열이고 failure 를 채운다. 모델이 정상 응답하면서 '읽지 못했다'고 말하는 경우이며, API 오류와는 다르다."
+      "enum": ["ANALYZED", "ANALYSIS_FAILED"],
+      "description": "명세 №15 의 MailReceiptStatus 와 같은 이름을 쓴다. ANALYSIS_FAILED 는 22번 「분석 실패」이며 그때 items 와 unregisteredParts 는 빈 배열이다. 모델이 정상 응답하면서 '읽지 못했다'고 말하는 경우이고, API 오류(№19 의 errorCode=AI_ERROR·AI_TIMEOUT)와는 다르다."
     },
-    "failure": {
-      "type": ["object", "null"],
-      "additionalProperties": false,
-      "required": ["code", "message"],
-      "description": "status 가 ANALYSIS_FAILED 일 때만 채운다. 아니면 null.",
-      "properties": {
-        "code": {
-          "type": "string",
-          "enum": ["ENCRYPTED", "PARSE_FAILED", "SCAN_QUALITY", "UNSUPPORTED_FORMAT", "NO_EMISSION_DATA"],
-          "description": "SCAN_QUALITY 는 R3 「스캔 품질 미달」이다."
-        },
-        "message": { "type": "string", "description": "담당자가 읽을 한국어 한 문장. 추측을 적지 않는다." }
-      }
+    "failureReason": {
+      "type": ["string", "null"],
+      "enum": ["ENCRYPTED_FILE", "PARSE_FAILED", "UNSUPPORTED_FORMAT", "NO_ATTACHMENT", null],
+      "description": "명세 №16 의 failureReason 네 값을 그대로 쓴다. status 가 ANALYZED 면 null. ⚠️ R3 「스캔 품질 미달」을 담을 코드가 이 넷에 없다 — 팀 확인이 필요하고, 그때까지는 PARSE_FAILED 로 둔다."
     },
     "sourceLanguage": {
       "type": "string",
       "enum": ["ko", "en", "vi", "id", "zh", "unknown"],
       "description": "원문 언어. 판정하지 못하면 unknown — 지어내지 않는다."
     },
-    "reportingMonth": {
-      "type": ["string", "null"],
-      "description": "서류 제출일자의 월 (23번). YYYY-MM. 문서에서 찾지 못하면 null — 오늘 날짜로 채우지 않는다. 33번이 이 값과 현재 월을 비교한다."
-    },
-    "productionCountry": {
-      "type": ["string", "null"],
-      "description": "생산국 (23번). ISO 3166-1 alpha-2 대문자 두 글자. 문서에 없으면 null."
-    },
     "items": {
       "type": "array",
-      "description": "뽑아낸 배출 항목. 23번이 요구하는 여섯 가지를 우선 채우고, 문서에 있는 연료·에너지 세부는 field=other 로 함께 싣는다.",
+      "description": "뽑아낸 배출 항목. **서버가 이 배열을 №21 의 activityData 객체로 옮긴다** — key 가 그 객체의 키가 된다. 배열로 받는 이유는 구조화 출력 strict 가 동적 키(fuel_lng · fuel_anthracite …)를 표현할 수 없어서다. 연료 종류는 자료마다 다르다.",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["field", "label", "raw", "value", "unit", "note", "confidence", "where"],
+        "required": ["key", "label", "rawValue", "value", "unit", "emissionScope", "conversionFailReason", "note", "confidence", "source"],
         "properties": {
-          "field": {
+          "key": {
             "type": "string",
-            "enum": ["part_name", "production", "emission_direct", "emission_indirect", "production_country", "reporting_month", "other"],
-            "description": "23번이 이름 붙인 여섯 가지. 그 밖의 연료·에너지 세부는 other 이고 label 이 원문 이름을 갖는다."
+            "description": "№21 activityData 의 키가 된다. 23번이 이름 붙인 여섯은 partName · production · electricity · productionCountry · documentMonth 를 그대로 쓰고(전력이 간접 배출량이다), 연료는 fuel_<종류> 로 쓴다 — 예: fuel_lng · fuel_anthracite. 새 이름을 만들 때도 snake_case 를 지킨다."
           },
-          "label": { "type": "string", "description": "원문이 부른 이름 그대로. 예: 「무연탄」 「증기 사용량」" },
-          "raw": { "type": "string", "description": "변환 전 원본 값을 문자열 그대로 보존한다 (24번). 원문에 없는 글자를 넣지 않는다." },
+          "label": { "type": "string", "description": "원문이 부른 이름 그대로. 예: 「무연탄」 「증기 사용량」. 화면이 mono 로 보여준다." },
+          "rawValue": { "type": "string", "description": "변환 전 원본 값을 문자열 그대로 보존한다 (24번). 원문에 없는 글자를 넣지 않는다. 원문에 값 자체가 없으면 빈 문자열." },
           "value": {
-            "type": ["string", "null"],
-            "description": "표준 단위로 옮긴 값. 숫자를 문자열로 담는다(자릿수 표기 보존). 변환할 수 없으면 반드시 null — 0 이나 추정치를 넣지 않는다 (24번)."
+            "type": ["number", "string", "null"],
+            "description": "표준화한 값. 수량은 숫자, partName·productionCountry·documentMonth 는 문자열이다 (№21 예시가 그렇다). 변환할 수 없으면 반드시 null — 0 이나 추정치를 넣지 않는다 (24번)."
           },
           "unit": {
             "type": ["string", "null"],
-            "description": "표준 단위. tCO2e · t · MWh · GJ 중 하나. 원문에 단위가 없거나 어느 쪽인지 모르면 null 이고 그것이 R5 「단위 불명확」이다."
+            "description": "표준 단위. tCO2e · TON · MWh · GJ 중 하나. 수량이 아닌 항목(partName · productionCountry · documentMonth)은 null. 원문 단위를 알 수 없어 변환하지 못했으면 rawValue 의 단위를 그대로 두고 conversionFailReason 을 채운다."
+          },
+          "emissionScope": {
+            "type": ["string", "null"],
+            "enum": ["DIRECT", "INDIRECT", null],
+            "description": "배출 구분 (№21). 연료 연소는 DIRECT, 전력은 INDIRECT. 배출량 항목이 아니면 null."
+          },
+          "conversionFailReason": {
+            "type": ["string", "null"],
+            "enum": ["UNIT_NOT_RECOGNIZED", "UNIT_NOT_CONVERTIBLE", "VALUE_NOT_NUMERIC", null],
+            "description": "표준 단위로 못 옮긴 사유 (№21). UNIT_NOT_RECOGNIZED 만 명세 예시에 있고 나머지 둘은 ⚠️ 추정이다. 변환에 성공했으면 null. 이 값이 있으면 화면이 R5 「단위 불명확」으로 표시한다."
           },
           "note": {
             "type": "string",
-            "description": "반드시 채운다. 변환했으면 무엇을 무엇으로 바꿨는지(「환산 kWh→MWh」), 비웠으면 왜 비웠는지(「단위가 적혀 있지 않다」). 빈 문자열을 넣지 않는다."
+            "description": "반드시 채운다. 변환했으면 무엇을 무엇으로 바꿨는지(「환산 kWh→MWh」), 비웠으면 왜 비웠는지. 빈 문자열을 넣지 않는다. conversionFailReason 이 코드라면 note 는 사람이 읽을 문장이다."
           },
           "confidence": {
             "type": "number",
-            "description": "0 이상 1 이하. 원문에 그대로 적혀 있으면 1 에 가깝고, 문맥으로 추론했으면 낮춘다. 0.9 미만이면 화면이 「사람 확인 대기」로 표시한다."
+            "description": "0 이상 1 이하. 원문에 그대로 적혀 있으면 1 에 가깝고 문맥으로 추론했으면 낮춘다. 0.9 미만이면 화면이 「사람 확인 대기」로 표시한다. ⚠️ №21 응답에는 이 필드가 없다 — 서버가 저장할지 버릴지 팀이 정해야 한다."
           },
-          "where": {
-            "type": "string",
-            "description": "항목별 추출 근거 — 원문 위치 (23번). 예: 「xlsx 시트1 B4」 「본문 3행」 「scan_0902.pdf 2쪽 표2」. 위치를 모르면 이 항목을 만들지 않는다."
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["attachmentId", "locator"],
+            "description": "항목별 추출 근거 (23번). 근거를 말할 수 없는 항목은 아예 만들지 않는다.",
+            "properties": {
+              "attachmentId": {
+                "type": ["integer", "null"],
+                "description": "근거가 있는 첨부의 id. 입력으로 준 첨부 목록의 id 를 그대로 쓴다. 메일 본문에서 찾았으면 null."
+              },
+              "locator": {
+                "type": "string",
+                "description": "첨부 안의 위치. 문법은 명세 규약 시트 10항을 따른다 — xlsx:Sheet1!B7 · csv:row=42,col=3 · pdf:page=2,bbox=[72,540,180,556]. 메일 본문이면 body:line=3."
+              }
+            }
           }
         }
       }
     },
-    "parts": {
+    "unregisteredParts": {
       "type": "array",
-      "description": "부품 매핑 (25번). 등록 부품 목록은 입력으로 준다. 목록에 없으면 matchedPartId 를 null 로 두고 원문 표기를 rawName 에 그대로 남긴다 — 비슷한 이름으로 억지로 맞추지 않는다.",
+      "description": "부품 매핑 (25번). 등록 부품 목록은 입력으로 준다. 목록에 없으면 여기 담고 원문 표기를 그대로 남긴다 — 비슷한 이름으로 억지로 맞추지 않는다. 매칭에 성공한 것은 여기 넣지 않고 items 의 partName 이 표준 부품명을 갖는다.",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["rawName", "matchedPartName", "matchedPartId", "confidence", "note"],
+        "required": ["rawPartName", "note"],
         "properties": {
-          "rawName": { "type": "string", "description": "원문 표기 그대로 (27번이 이것을 화면에 보여준다)." },
-          "matchedPartName": { "type": ["string", "null"], "description": "매칭된 등록 부품명. 없으면 null." },
-          "matchedPartId": { "type": ["integer", "null"], "description": "매칭된 등록 부품 id. 없으면 null 이고 그것이 R6 「미등록 부품」이다." },
-          "confidence": { "type": "number", "description": "0 이상 1 이하. 0.9 미만이면 매칭하지 않고 null 로 둔다." },
-          "note": { "type": "string", "description": "매칭 근거 또는 매칭하지 못한 사유." }
+          "rawPartName": { "type": "string", "description": "원문 표기 그대로 (№21 · 27번이 이것을 화면에 보여준다). 서버가 저장하며 id 를 붙인다." },
+          "note": { "type": "string", "description": "왜 매칭하지 못했는지. 「비슷한 후보가 있었지만 CN 코드가 달랐다」처럼 담당자가 판단할 근거를 남긴다." }
         }
       }
     }
