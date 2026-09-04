@@ -175,6 +175,8 @@ export function startTask(endpoint, kind, { ms = 2600, result = null, fail = fal
   return { status: 202, taskId: id, pollAfterMs: 1200 }
 }
 
+/** №19 GET /tasks/{taskId}. 목과 실서버가 **같은 모양**이라 변환할 것이 없다 —
+ *  목을 명세 모양으로 맞춰 둔 덕이다. .env 의 VITE_REAL_API 에 넣으면 그대로 실서버로 간다. */
 export async function getTask(id) {
   return request('GET /tasks/{taskId}', () => {
     const t = tasks.get(id)
@@ -194,5 +196,5 @@ export async function getTask(id) {
       errorCode: t.error?.code ?? null,
       errorMessage: t.error?.message ?? null,
     }
-  })
+  }, () => http('GET', `/tasks/${id}`))
 }

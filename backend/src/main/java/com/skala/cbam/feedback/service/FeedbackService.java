@@ -31,6 +31,7 @@ import com.skala.cbam.feedback.error.FeedbackErrorCode;
 import com.skala.cbam.feedback.error.FeedbackException;
 import com.skala.cbam.feedback.repository.FeedbackDraftRepository;
 import com.skala.cbam.feedback.repository.FeedbackRepository;
+import com.skala.cbam.feedback.repository.FeedbackSpecifications;
 import com.skala.cbam.feedback.repository.TaskRepository;
 import com.skala.cbam.feedback.service.port.SubmissionRelatedDataProvider;
 import com.skala.cbam.supplier.domain.Supplier;
@@ -144,7 +145,9 @@ public class FeedbackService {
                     .partSupplierId(ctx.partSupplierId())
                     .submissionId(ctx.submissionId())
                     .reportingMonth(month.atDay(1))
-                    .type(FeedbackType.FEEDBACK)
+                    // ERD 의 ck_feedback_target 이 정한다 — FEEDBACK 은 제출 건이 있어야 하고,
+                    // 제출이 없는 대상(43번의 미제출)은 REMINDER 다. 고를 자리가 없다
+                    .type(ctx.submissionId() == null ? FeedbackType.REMINDER : FeedbackType.FEEDBACK)
                     .createdBy(operatorId)
                     .build());
 
@@ -372,9 +375,10 @@ public class FeedbackService {
 
     public PageResponse<FeedbackHistoryItem> listHistories(
             FeedbackHistorySearchCondition condition, Pageable pageable) {
-        Page<Feedback> page = feedbackRepository.search(
-                condition.supplierId(), condition.type(), condition.status(),
-                condition.from(), condition.to(), pageable);
+        Page<Feedback> page = feedbackRepository.findAll(
+                FeedbackSpecifications.matches(condition.supplierId(), condition.type(), condition.status(),
+                        condition.from(), condition.to()),
+                pageable);
 
         List<FeedbackHistoryItem> content = page.getContent().stream().map(this::toHistoryItem).toList();
         return PageResponse.of(page, content);
