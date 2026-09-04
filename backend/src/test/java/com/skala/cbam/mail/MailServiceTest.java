@@ -3,6 +3,9 @@ package com.skala.cbam.mail;
 import com.skala.cbam.mail.domain.Attachment;
 import com.skala.cbam.mail.domain.AttachmentProcessStatus;
 import com.skala.cbam.mail.domain.MailReceipt;
+import com.skala.cbam.common.domain.TaskStatus;
+import com.skala.cbam.feedback.domain.TaskType;
+import com.skala.cbam.feedback.repository.TaskRepository;
 import com.skala.cbam.mail.domain.MailReceiptStatus;
 import com.skala.cbam.mail.dto.AttachmentContent;
 import com.skala.cbam.mail.dto.MailReceiptDetailResponse;
@@ -47,6 +50,8 @@ class MailServiceTest {
     private AttachmentRepository attachmentRepository;
     @Autowired
     private SupplierRepository supplierRepository;
+    @Autowired
+    private TaskRepository taskRepository;
 
     private Supplier daehan;
 
@@ -150,7 +155,23 @@ class MailServiceTest {
         assertThat(response.status()).isEqualTo(MailReceiptStatus.MATCHED);
         assertThat(response.supplierId()).isEqualTo(daehan.getId());
         assertThat(response.linkedBy()).isEqualTo("demo");
-        assertThat(response.analyzeTaskId()).isNull();
+
+        // 요구사항 20번 "연결 즉시 AI 분석을 자동 호출한다" (CBAM-100).
+        // 전에는 분석 도메인이 없어 null 이었다 — 이제 진짜 작업 id 가 나오고,
+        // 화면은 이것으로 №19 GET /tasks/{taskId} 를 폴링한다.
+        assertThat(response.analyzeTaskId()).startsWith("tsk-");
+        assertThat(taskRepository.findById(response.analyzeTaskId()))
+                .get()
+                .satisfies(task -> {
+                    assertThat(task.getType()).isEqualTo(TaskType.ANALYZE_MAIL_RECEIPT);
+                    assertThat(task.getStatus()).isEqualTo(TaskStatus.PENDING);
+                });
+
+        // 접수 건이 그 작업을 붙들고 있어야 화면이 새로고침 뒤에도 폴링을 이어 간다
+        assertThat(mailReceiptRepository.findById(receipt.getId()))
+                .get()
+                .satisfies(saved ->
+                        assertThat(saved.getLatestAnalysisTaskId()).isEqualTo(response.analyzeTaskId()));
     }
 
     @Test

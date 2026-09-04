@@ -86,6 +86,11 @@ public class Attachment {
         this.processStatus = processStatus == null ? AttachmentProcessStatus.PENDING : processStatus;
     }
 
+    /** 22번 ①단계 결과 — 글자를 꺼냈는지, 못 다루는 형식인지, 읽다 실패했는지. */
+    public void markProcessStatus(AttachmentProcessStatus processStatus) {
+        this.processStatus = processStatus;
+    }
+
     @PrePersist
     void onPrePersist() {
         this.createdAt = now();
