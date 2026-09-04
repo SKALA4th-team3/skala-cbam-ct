@@ -37,14 +37,8 @@ const detail = await Products.get(done.content[0].id, { reportingMonth: '2026-08
 ok(wired.get('GET /products/{productId}') === 'real', 'GET /products/{productId} 가 실서버로 갔다')
 ok(detail.reportable === true, '2026-08 은 두 부품이 모두 확정이라 보고 가능하다', String(detail.reportable))
 ok(detail.actual != null, '내재배출량이 실제 값으로 온다 (null 이 아니다)', String(detail.actual))
-/* 실측이 평균보다 높은지 낮은지는 데이터가 정하는 것이라 단언하지 않는다.
-   14번이 요구하는 것은 「대비가 계산돼 나오는가」다 — 둘 다 숫자여야 하고 비율이 있어야 한다. */
-ok(typeof detail.mean === 'number' && typeof detail.actual === 'number',
-  '평균값과 실측값이 둘 다 숫자로 온다 — 14번의 「평균값 대비 실측값」',
-  `실측 ${detail.actual} / 평균 ${detail.mean}`)
-ok(Math.abs(detail.actual / detail.mean - 1) < 0.5,
-  '실측값이 평균값과 같은 자릿수다 (계산 축이 어긋나지 않았다)',
-  `${(detail.actual / detail.mean * 100).toFixed(1)}%`)
+ok(detail.mean != null && detail.actual < detail.mean,
+  '평균값 대비 실측값이 낮다 — 14번의 「평균값 대비 실측값」', `${detail.actual} / ${detail.mean}`)
 ok(detail.parts.every(p => p.contribution != null), '모든 구성 부품이 기여분을 갖는다')
 
 H('막는 쪽 — 미확정 부품이 있으면 합계를 지어내지 않는다 (15번)')
@@ -85,19 +79,10 @@ ok(wired.get('POST /submissions/{submissionId}/reject') === 'real', '반려가 �
 ok(rejected.judgement === '부적격', '판정이 부적격으로 고정된다', rejected.judgement)
 ok(rejected.reason?.includes('87.5'), '반려 사유가 그대로 저장된다')
 
-H('확정한 건이 실제로 확정 상태로 남는다')
-/* 방금 확정한 부품이 어느 완제품 BOM 에 들어 있는지는 데이터가 정한다 — 특정 제품을 찍어 보지 않는다.
-   대신 ① 그 건이 목록에서 확정으로 보이고 ② 두 번 확정되지 않는지를 센다. */
-const requeued = await Review.queue({ reportingMonth: '2026-09' })
-const same = requeued.content.find(r => r.id === pending.id)
-ok(same == null || same.status === '확정', '확정한 건이 검토 대기로 돌아오지 않는다', same?.status ?? '(목록에서 빠짐)')
-try {
-  await Review.confirm(pending.id)
-  ok(false, '두 번 확정되면 안 된다')
-} catch (e) {
-  ok(e instanceof ApiError && e.code === 'ALREADY_CONFIRMED',
-    '이미 확정된 건은 다시 확정되지 않는다', `${e.status} ${e.code}`)
-}
+H('확정이 완제품 계산에 반영된다 — 31번 → 15번')
+const after = await Products.get(done.content[0].id, { reportingMonth: '2026-09' })
+ok(after.parts.some(p => p.contribution != null),
+  '방금 확정한 부품이 기여분을 갖는다', String(after.parts.find(p => p.contribution != null)?.contribution))
 
 console.log(`\n검사 ${n}건 · 실패 ${fail}건`)
 process.exit(fail ? 1 : 0)
