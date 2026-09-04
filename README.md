@@ -85,9 +85,11 @@ npm run api:real           # 실서버 계약 검사 — BE 가 8080 에 떠 있
 cd backend
 SPRING_PROFILES_ACTIVE=dev,mock ./gradlew bootRun
 
-# 2) 화면 — .env 의 「시연용 한 줄」 주석을 벗긴 뒤
+# 2) 화면
 cd frontend
-cp .env.example .env       # VITE_REAL_API 의 시연용 줄에서 # 를 뗀다
+npm install                # 처음 받았다면 이것부터
+cp .env.example .env
+#    .env 를 열어 「시연용」 주석의 한 줄을 복사해 맨 밑 VITE_REAL_API= 뒤에 붙인다
 npm run dev
 ```
 
