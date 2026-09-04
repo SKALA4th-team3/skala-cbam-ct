@@ -19,7 +19,7 @@ const width = computed(() =>
        :title="`평균값 대비 ${ratio.toFixed(2)}배 · 허용 ${(1 - band).toFixed(1)}–${(1 + band).toFixed(1)}`">
     <i class="band"></i>
     <i class="brk l"></i><i class="brk r"></i>
-    <i class="bar" :class="{ over }" :style="{ width }"></i>
+    <i class="val" :class="{ over }" :style="{ width }"></i>
     <i class="avg"></i>
     <b class="flag" :style="{ left: width }">{{ ratio.toFixed(2) }}</b>
   </div>

@@ -41,7 +41,18 @@ page.on('pageerror', e => errs.push(`pageerror: ${e.message}`))
 page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push(`console: ${m.text().slice(0, 200)}`) })
 const note = (where, what) => problems.push(`${where} — ${what}`)
 const wait = ms => page.waitForTimeout(ms)
-const toast = async () => page.evaluate(() => (document.querySelector('#toast.on')?.textContent ?? '').trim())
+/* 토스트 글자를 읽는다. **보이는지도 함께 본다** —
+   전에는 textContent 만 읽어서, 토스트에 CSS 가 한 줄도 안 걸려 화면 좌측 최상단에
+   맨 글자로 떨어져 있던 동안에도 이 검사가 20여 번 전부 통과했다.
+   position:fixed 가 아니거나 화면 밖이면 글자가 있어도 못 읽은 것으로 친다. */
+const toast = async () => page.evaluate(() => {
+  const el = document.querySelector('.toast.on')
+  if (!el) return ''
+  const c = getComputedStyle(el), r = el.getBoundingClientRect()
+  const visible = c.position === 'fixed' && +c.opacity > .5 &&
+    r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= innerHeight
+  return visible ? (el.textContent ?? '').trim() : `__안 보임(position:${c.position} opacity:${c.opacity} top:${Math.round(r.top)})__`
+})
 const url = () => page.url().replace(BASE, '')
 
 async function go(path) { await page.goto(BASE + path, { waitUntil: 'load' }); await wait(650) }
@@ -78,7 +89,7 @@ const step = (s) => { R.push(s); console.log('·', s) }
 
 // ── 관제
 await go('/'); step('관제 열림 · ' + (await page.locator('.brief h1').textContent()).trim().slice(0, 40))
-await pressAll('관제', { skip: ['재판정'] })
+await pressAll('관제')
 await page.locator('.mh-col').nth(5).click(); await wait(300)
 step('월별 판정 열 선택 → ' + (await page.locator('.jg-r .cap').textContent()).trim())
 await page.locator('.eb-row').first().click(); await wait(600); step('배출량 막대 → ' + url()); await go('/')
